@@ -39,21 +39,30 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var inAppUpdate: InAppUpdate
 
+    // mainViewModel是与activity生命周期相关的实例
     private val mainViewModel by viewModels<MainViewModel>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // 显示自定义的启动屏幕
         installSplashScreen()
+        // 调用父类的onCreate方法完成activity创建流程
         super.onCreate(savedInstanceState)
+        // 使用数据绑定加载布局文件
         val binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // 设置窗口的装饰视图不适应系统窗口，通常用于实现全屏效果或自定义状态栏样式
         window.decorFitsSystemWindows(false)
+        // 调用自定义的 fullscreenMode 方法，根据 MainViewModel 中的 fullScreenMode 属性设置窗口的全屏模式
         window.fullscreenMode(mainViewModel.fullScreenMode)
 
+        // 自定义的 applySystemWindowInsets 方法来处理系统窗口内边距
+        // 这里将navHost的左、右内边距更新为系统窗口内边距的值
         binding.navHost.applySystemWindowInsets(false) { left, _, right, _ ->
             binding.navHost.updatePadding(left = left, right = right)
         }
 
+        // 如果发现更新，显示一个 Snackbar 提示用户
         inAppUpdate.checkForUpdates(this) {
             Snackbar.make(binding.root, R.string.message_in_app_update_ready, Snackbar.LENGTH_INDEFINITE)
                 .setAction(R.string.action_restart) { inAppUpdate.completeUpdate() }

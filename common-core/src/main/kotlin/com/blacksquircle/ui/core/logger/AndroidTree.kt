@@ -21,6 +21,7 @@ import timber.log.Timber
 class AndroidTree : Timber.DebugTree() {
 
     override fun log(priority: Int, tag: String?, message: String, t: Throwable?) {
+        // 提取$之前的部分作为className
         val className = tag?.substringBefore('$', tag)
         super.log(priority, className, message, t)
     }

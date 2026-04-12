@@ -45,6 +45,7 @@
     <string name="shortcuts_goto_line_title">Go to Line</string>
     <string name="shortcuts_force_syntax_title">Force Syntax</string>
     <string name="shortcuts_insert_color_title">Insert Color</string>
+    <string name="shortcuts_run_python_title">Run Python Code</string>
     <string name="shortcuts_none_set">None set</string>
 
     <string name="shortcuts_assign_dialog_message">Press the new keybinding (must contain Ctrl or Alt)</string>

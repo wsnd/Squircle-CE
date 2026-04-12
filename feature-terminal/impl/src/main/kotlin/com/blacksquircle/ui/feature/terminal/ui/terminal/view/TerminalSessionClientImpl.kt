@@ -29,7 +29,10 @@ internal class TerminalSessionClientImpl(
 
     override fun onTextChanged(changedSession: TerminalSession) = onUpdate()
     override fun onTitleChanged(changedSession: TerminalSession) = onUpdate()
-    override fun onSessionFinished(finishedSession: TerminalSession) = Unit
+    override fun onSessionFinished(finishedSession: TerminalSession) {
+        Timber.d("Session finished: pid: ${finishedSession.getPid()}, exit code: ${finishedSession.getExitStatus()}")
+        onUpdate()
+    }
     override fun onCopyTextToClipboard(session: TerminalSession, text: String) = onCopy(text)
     override fun onPasteTextFromClipboard(session: TerminalSession?) = onPaste()
     override fun onBell(session: TerminalSession) = Unit

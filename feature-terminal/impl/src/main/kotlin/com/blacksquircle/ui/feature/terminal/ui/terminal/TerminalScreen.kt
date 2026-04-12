@@ -45,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.blacksquircle.ui.core.event.AppEvent
+import com.blacksquircle.ui.core.event.EventBus
 import com.blacksquircle.ui.core.extensions.copyText
 import com.blacksquircle.ui.core.extensions.daggerViewModel
 import com.blacksquircle.ui.core.extensions.primaryClipText
@@ -70,6 +72,7 @@ import com.blacksquircle.ui.feature.terminal.ui.terminal.extrakeys.ExtraKeysView
 import com.blacksquircle.ui.feature.terminal.ui.terminal.model.TerminalCommand
 import com.blacksquircle.ui.feature.terminal.ui.terminal.view.TerminalViewClientImpl
 import com.termux.view.TerminalView
+import timber.log.Timber
 import com.blacksquircle.ui.ds.R as UiR
 
 /** Height of Termux's single row multiplied by 2 */
@@ -119,6 +122,19 @@ internal fun TerminalScreen(
                 }
                 is TerminalViewEvent.ScrollToEnd -> {
                     tabsState.animateScrollToItem(viewState.sessions.size)
+                }
+            }
+        }
+    }
+    
+    // Listen to EventBus for Python command execution
+    LaunchedEffect(Unit) {
+        EventBus.events.collect { event ->
+            Timber.d("TerminalScreen received EventBus event: $event")
+            when (event) {
+                is AppEvent.ExecutePythonCommand -> {
+                    // Send command to terminal session
+                    viewModel.executeCommandInTerminal(event.command)
                 }
             }
         }

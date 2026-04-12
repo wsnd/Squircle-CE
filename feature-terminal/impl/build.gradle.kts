@@ -37,6 +37,7 @@ dependencies {
     implementation(project(":core-navigation:api"))
     implementation(project(":core-ui"))
 
+    implementation(project(":feature-python"))
     implementation(project(":feature-terminal:api"))
 
     implementation(libs.google.guava.empty)

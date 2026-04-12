@@ -15,4 +15,8 @@
   ~ limitations under the License.
   -->
 
-<manifest />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Python execution is handled directly via PythonExecutor -->
+    </application>
+</manifest>

@@ -23,6 +23,8 @@ import androidx.lifecycle.viewModelScope
 import com.blacksquircle.ui.core.extensions.PermissionException
 import com.blacksquircle.ui.core.extensions.indexOf
 import com.blacksquircle.ui.core.extensions.indexOrNull
+import com.blacksquircle.ui.core.event.AppEvent
+import com.blacksquircle.ui.core.event.EventBus
 import com.blacksquircle.ui.core.mvi.ViewEvent
 import com.blacksquircle.ui.core.provider.resources.StringProvider
 import com.blacksquircle.ui.core.settings.SettingsManager
@@ -78,8 +80,10 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Provider
 import com.blacksquircle.ui.ds.R as UiR
+import android.content.Context
 
 internal class EditorViewModel @Inject constructor(
+    private val context: Context,
     private val stringProvider: StringProvider,
     private val settingsManager: SettingsManager,
     private val documentRepository: DocumentRepository,
@@ -323,6 +327,7 @@ internal class EditorViewModel @Inject constructor(
             Shortcut.GOTO_LINE -> onGoToLineClicked()
             Shortcut.FORCE_SYNTAX -> onForceSyntaxClicked()
             Shortcut.INSERT_COLOR -> onInsertColorClicked()
+            Shortcut.RUN_PYTHON -> onRunPythonClicked()
             else -> Unit
         }
     }
@@ -413,6 +418,61 @@ internal class EditorViewModel @Inject constructor(
         viewModelScope.launch {
             val command = EditorCommand.EndOfLine
             _viewEvent.send(EditorViewEvent.Command(command))
+        }
+    }
+
+    fun onRunPythonClicked() {
+        onRunPythonInTerminalClicked()
+    }
+
+    /**
+     * Run Python code in Terminal (execute and show output seamlessly)
+     */
+    fun onRunPythonInTerminalClicked() {
+        viewModelScope.launch {
+            if (selectedPosition !in documents.indices) {
+                return@launch
+            }
+
+            val documentState = documents[selectedPosition]
+            val document = documentState.document
+            
+            // Only run for Python files
+            if (document.extension != ".py") {
+                _viewEvent.send(ViewEvent.Toast("This feature is only available for Python files"))
+                return@launch
+            }
+
+            try {
+                // 1. Ensure the file is saved before running
+                if (document.modified) {
+                    onSaveFileClicked()
+                    // Small delay to ensure the file system has written the data
+                    kotlinx.coroutines.delay(200)
+                }
+
+                // 2. Get the directory and filename
+                val file = java.io.File(document.path)
+                val parentDir = file.parent ?: ""
+                val fileName = file.name
+                
+                val nativeLibDir = context.applicationInfo.nativeLibraryDir
+                val pythonExe = "$nativeLibDir/libpython_exe.so"
+                
+                // 3. Navigate to terminal with the execution command
+                // First cd to the script's directory, then run it
+                navigator.navigate(
+                    com.blacksquircle.ui.feature.terminal.api.navigation.TerminalRoute(
+                        workingDir = parentDir,
+                        command = "cd \"$parentDir\" && \"$pythonExe\" \"$fileName\""
+                    )
+                )
+                
+                _viewEvent.send(ViewEvent.Toast("Running: python ${document.displayName}"))
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewEvent.send(ViewEvent.Toast("Error: ${e.message}"))
+            }
         }
     }
 
@@ -835,7 +895,7 @@ internal class EditorViewModel @Inject constructor(
             if (terminalInteractor.isTermux()) {
                 terminalInteractor.openTermux()
             } else {
-                val screen = TerminalRoute()
+                val screen = TerminalRoute(isPythonRepl = true)
                 navigator.navigate(screen)
             }
         }

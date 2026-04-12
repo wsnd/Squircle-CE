@@ -18,4 +18,6 @@ package com.blacksquircle.ui.feature.terminal.api.model
 
 data class ShellArgs(
     val workingDir: String? = null,
+    val command: String? = null,
+    val isPythonRepl: Boolean = false,
 )

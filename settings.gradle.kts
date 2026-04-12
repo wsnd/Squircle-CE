@@ -52,6 +52,7 @@ include(
     ":feature-fonts:impl",
     ":feature-git:api",
     ":feature-git:impl",
+    ":feature-python",
     ":feature-servers:api",
     ":feature-servers:impl",
     ":feature-settings:api",

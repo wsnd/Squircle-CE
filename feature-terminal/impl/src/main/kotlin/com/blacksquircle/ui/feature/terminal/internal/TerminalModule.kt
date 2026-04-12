@@ -21,6 +21,7 @@ import com.blacksquircle.ui.core.settings.SettingsManager
 import com.blacksquircle.ui.feature.terminal.data.manager.RuntimeManagerImpl
 import com.blacksquircle.ui.feature.terminal.data.manager.SessionManagerImpl
 import com.blacksquircle.ui.feature.terminal.data.runtime.AndroidRuntime
+import com.blacksquircle.ui.feature.terminal.data.runtime.PythonRuntime
 import com.blacksquircle.ui.feature.terminal.domain.manager.RuntimeManager
 import com.blacksquircle.ui.feature.terminal.domain.manager.SessionManager
 import com.blacksquircle.ui.feature.terminal.domain.runtime.TerminalRuntime
@@ -33,8 +34,8 @@ internal object TerminalModule {
 
     @Provides
     @TerminalScope
-    fun provideSessionManager(): SessionManager {
-        return SessionManagerImpl()
+    fun provideSessionManager(context: android.content.Context): SessionManager {
+        return SessionManagerImpl(context)
     }
 
     @Provides
@@ -56,5 +57,11 @@ internal object TerminalModule {
     @Provides
     fun provideAndroidRuntime(): TerminalRuntime {
         return AndroidRuntime
+    }
+    
+    @IntoSet
+    @Provides
+    fun providePythonRuntime(context: android.content.Context): TerminalRuntime {
+        return PythonRuntime(context)
     }
 }

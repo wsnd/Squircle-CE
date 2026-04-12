@@ -23,10 +23,12 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class TerminalRoute(
     val workingDir: String? = null,
+    val command: String? = null,
+    val isPythonRepl: Boolean = false,
 ) : NavKey {
     val args: ShellArgs?
-        get() = if (workingDir != null) {
-            ShellArgs(workingDir = workingDir)
+        get() = if (workingDir != null || command != null || isPythonRepl) {
+            ShellArgs(workingDir = workingDir, command = command, isPythonRepl = isPythonRepl)
         } else {
             null
         }

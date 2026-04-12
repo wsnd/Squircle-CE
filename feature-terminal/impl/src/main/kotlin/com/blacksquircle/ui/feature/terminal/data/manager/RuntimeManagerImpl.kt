@@ -37,11 +37,16 @@ internal class RuntimeManagerImpl(
 
     override fun createRuntime(): Flow<RuntimeState> = flow {
         val currentType = RuntimeType.of(settingsManager.terminalRuntime)
+        android.util.Log.d("RuntimeManager", "Creating runtime: type=$currentType, setting=${settingsManager.terminalRuntime}")
+        
         val terminalRuntime = runtimeSet.find { it.type == currentType }
         if (terminalRuntime == null) {
+            android.util.Log.e("RuntimeManager", "Runtime not found for type: $currentType")
             emit(RuntimeState.Failed("Unsupported runtime"))
             return@flow
         }
+        
+        android.util.Log.d("RuntimeManager", "Found runtime: ${terminalRuntime.name}, type: ${terminalRuntime.type}")
 
         val installer = installerMap[currentType]
         if (installer == null || installer.isInstalled()) {

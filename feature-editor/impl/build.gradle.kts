@@ -45,6 +45,7 @@ dependencies {
     implementation(project(":feature-explorer:impl"))
     implementation(project(":feature-fonts:api"))
     implementation(project(":feature-git:api"))
+    implementation(project(":feature-python"))
     implementation(project(":feature-settings:api"))
     implementation(project(":feature-shortcuts:api"))
     implementation(project(":feature-terminal:api"))

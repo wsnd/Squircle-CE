@@ -174,6 +174,7 @@ private fun ShortcutsScreen(
                             Shortcut.GOTO_LINE -> stringResource(R.string.shortcuts_goto_line_title)
                             Shortcut.FORCE_SYNTAX -> stringResource(R.string.shortcuts_force_syntax_title)
                             Shortcut.INSERT_COLOR -> stringResource(R.string.shortcuts_insert_color_title)
+                            Shortcut.RUN_PYTHON -> stringResource(R.string.shortcuts_run_python_title)
                         },
                         onClick = { onKeyClicked(keybinding) },
                         verticalAlignment = Alignment.CenterVertically,

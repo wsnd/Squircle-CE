@@ -19,9 +19,12 @@ package com.blacksquircle.ui.feature.terminal.ui.terminal
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.blacksquircle.ui.core.event.AppEvent
+import com.blacksquircle.ui.core.event.EventBus
 import com.blacksquircle.ui.core.extensions.indexOf
 import com.blacksquircle.ui.core.mvi.ViewEvent
 import com.blacksquircle.ui.core.settings.SettingsManager
+import com.blacksquircle.ui.feature.terminal.api.model.RuntimeType
 import com.blacksquircle.ui.feature.terminal.api.model.ShellArgs
 import com.blacksquircle.ui.feature.terminal.domain.manager.RuntimeManager
 import com.blacksquircle.ui.feature.terminal.domain.manager.SessionManager
@@ -40,6 +43,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 internal class TerminalViewModel @AssistedInject constructor(
@@ -65,6 +69,48 @@ internal class TerminalViewModel @AssistedInject constructor(
 
     fun onBackClicked() {
         navigator.goBack()
+    }
+    
+    /**
+     * Execute a command in the terminal session
+     */
+    fun executeCommandInTerminal(command: String) {
+        viewModelScope.launch {
+            Timber.d("executeCommandInTerminal: $command")
+            val currentSession = sessions.find { it.id == selectedSession }
+            if (currentSession != null) {
+                Timber.d("Writing command to existing session: ${currentSession.id}")
+                // Wait a bit to ensure session is ready
+                kotlinx.coroutines.delay(300)
+                // Write command followed by newline to execute it
+                currentSession.session.write("$command\n")
+            } else {
+                Timber.w("No active session. Creating one for command execution...")
+                createRuntime { runtime ->
+                    val sessionId = sessionManager.createSession(runtime)
+                    sessions = sessionManager.sessions()
+                    selectedSession = sessionId
+                    
+                    _viewState.update {
+                        it.copy(
+                            sessions = sessions,
+                            selectedSession = selectedSession,
+                        )
+                    }
+                }
+                
+                // Wait for session initialization
+                kotlinx.coroutines.delay(800)
+                
+                val newSession = sessions.find { it.id == selectedSession }
+                if (newSession != null) {
+                    Timber.d("Writing command to new session: $selectedSession")
+                    newSession.session.write("$command\n")
+                } else {
+                    Timber.e("Failed to create session!")
+                }
+            }
+        }
     }
 
     fun onSessionClicked(sessionModel: SessionModel) {
@@ -168,16 +214,20 @@ internal class TerminalViewModel @AssistedInject constructor(
 
             if (sessions.isEmpty() || pendingCommand != null) {
                 createRuntime { runtime ->
-                    sessionManager.createSession(runtime, pendingCommand)
+                    val sessionId = sessionManager.createSession(runtime, pendingCommand)
 
                     sessions = sessionManager.sessions()
-                    selectedSession = sessions.lastOrNull()?.id
+                    selectedSession = sessionId
 
                     _viewState.update {
                         it.copy(
                             sessions = sessions,
                             selectedSession = selectedSession,
                         )
+                    }
+
+                    pendingCommand?.command?.let { command ->
+                        executeCommandInTerminal(command)
                     }
                 }
             } else {

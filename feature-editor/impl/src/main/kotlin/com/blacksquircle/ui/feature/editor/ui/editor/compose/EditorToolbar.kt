@@ -48,6 +48,7 @@ internal fun EditorToolbar(
     onSaveFileClicked: () -> Unit = {},
     onSaveFileAsClicked: () -> Unit = {},
     onReloadFileClicked: () -> Unit = {},
+    onRunPythonClicked: () -> Unit = {},
     onCutClicked: () -> Unit = {},
     onCopyClicked: () -> Unit = {},
     onPasteClicked: () -> Unit = {},
@@ -93,6 +94,15 @@ internal fun EditorToolbar(
                     )
                 }
             )
+            // Run Python button (only show for Python files)
+            if (currentDocument?.document?.extension == ".py") {
+                IconButton(
+                    iconResId = UiR.drawable.ic_play,
+                    onClick = onRunPythonClicked,
+                    contentDescription = "Run Python code"
+                )
+            }
+
             IconButton(
                 iconResId = UiR.drawable.ic_pencil,
                 onClick = { menuType = MenuType.EDIT },

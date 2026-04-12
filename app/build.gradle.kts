@@ -45,6 +45,10 @@ android {
     buildFeatures {
         compose = true
     }
+
+    androidResources {
+        ignoreAssetsPattern = ""
+    }
 }
 
 dependencies {
@@ -63,6 +67,7 @@ dependencies {
     implementation(project(":feature-fonts:impl"))
     implementation(project(":feature-git:api"))
     implementation(project(":feature-git:impl"))
+    implementation(project(":feature-python"))
     implementation(project(":feature-servers:api"))
     implementation(project(":feature-servers:impl"))
     implementation(project(":feature-settings:api"))

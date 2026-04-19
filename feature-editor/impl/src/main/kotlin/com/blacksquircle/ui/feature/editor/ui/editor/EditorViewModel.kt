@@ -444,23 +444,57 @@ internal class EditorViewModel @Inject constructor(
             }
 
             try {
-                // 1. Ensure the file is saved before running
-                if (document.modified) {
-                    onSaveFileClicked()
-                    // Small delay to ensure the file system has written the data
-                    kotlinx.coroutines.delay(200)
+                // 1. Save file if modified
+                val content = documentState.content
+                if (content != null && document.modified) {
+                    val updatedDocument = document.copy(
+                        modified = false,
+                        scrollX = content.scrollX,
+                        scrollY = content.scrollY,
+                        selectionStart = content.selectionStart,
+                        selectionEnd = content.selectionEnd,
+                    )
+                    
+                    documents = documents.mapSelected { state ->
+                        state.copy(document = updatedDocument)
+                    }
+                    _viewState.update {
+                        it.copy(documents = documents)
+                    }
+                    
+                    documentRepository.saveDocument(updatedDocument, content)
+                } else if (content == null) {
+                    _viewEvent.send(ViewEvent.Toast("Error: No content to save"))
+                    return@launch
                 }
 
-                // 2. Get the directory and filename
-                val file = java.io.File(document.path)
+                // 2. Get actual file path based on filesystem type
+                val actualFilePath = if (document.filesystemUuid == com.blacksquircle.ui.filesystem.saf.SAFFilesystem.SAF_UUID) {
+                    // For SAF files, resolve content URI to real path
+                    val fileUri = android.net.Uri.parse(document.fileUri)
+                    resolveSafFilePath(context, fileUri, document.displayName)
+                        ?: run {
+                            _viewEvent.send(ViewEvent.Toast("Error: Cannot access file"))
+                            return@launch
+                        }
+                } else {
+                    // For local files, use the path directly
+                    document.path
+                }
+                
+                val file = java.io.File(actualFilePath)
+                if (!file.exists()) {
+                    _viewEvent.send(ViewEvent.Toast("File does not exist: ${document.displayName}"))
+                    Timber.e("File does not exist: $actualFilePath")
+                    return@launch
+                }
+                
                 val parentDir = file.parent ?: ""
                 val fileName = file.name
-                
                 val nativeLibDir = context.applicationInfo.nativeLibraryDir
                 val pythonExe = "$nativeLibDir/libpython_exe.so"
                 
                 // 3. Navigate to terminal with the execution command
-                // First cd to the script's directory, then run it
                 navigator.navigate(
                     com.blacksquircle.ui.feature.terminal.api.navigation.TerminalRoute(
                         workingDir = parentDir,
@@ -470,9 +504,108 @@ internal class EditorViewModel @Inject constructor(
                 
                 _viewEvent.send(ViewEvent.Toast("Running: python ${document.displayName}"))
             } catch (e: Exception) {
-                Timber.e(e, e.message)
+                Timber.e(e, "Failed to run Python file")
                 _viewEvent.send(ViewEvent.Toast("Error: ${e.message}"))
             }
+        }
+    }
+    
+    /**
+     * Resolve SAF URI to actual filesystem path
+     * Tries multiple methods: MediaStore query, URI parsing, cache fallback
+     */
+    private fun resolveSafFilePath(context: Context, uri: android.net.Uri, fileName: String): String? {
+        // Method 1: Try MediaStore query
+        getRealPathFromUri(context, uri)?.let { return it }
+        
+        // Method 2: Parse document URI for local storage
+        extractPathFromDocumentUri(context, uri)?.let { return it }
+        
+        // Method 3: Fallback - copy to cache
+        return copySafFileToCache(context, uri, fileName)?.absolutePath
+    }
+    
+    /**
+     * Get real filesystem path from SAF URI
+     */
+    private fun getRealPathFromUri(context: Context, uri: android.net.Uri): String? {
+        return try {
+            val projection = arrayOf(android.provider.MediaStore.Files.FileColumns.DATA)
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                val columnIndex = cursor.getColumnIndexOrThrow(android.provider.MediaStore.Files.FileColumns.DATA)
+                if (cursor.moveToFirst()) {
+                    cursor.getString(columnIndex)
+                } else {
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to get real path from URI via MediaStore")
+            null
+        }
+    }
+    
+    /**
+     * Extract path from SAF document URI (for local storage)
+     * Handles URIs like: content://com.android.externalstorage.documents/tree/primary%3ADownloads/document/primary%3ADownloads%2Ftest.py
+     */
+    private fun extractPathFromDocumentUri(context: Context, uri: android.net.Uri): String? {
+        return try {
+            // Check if it's an external storage document
+            if (uri.authority != "com.android.externalstorage.documents") {
+                return null
+            }
+            
+            val docId = android.provider.DocumentsContract.getDocumentId(uri)
+            
+            // Parse the document ID (format: "primary:path" or "SD_CARD_ID:path")
+            val split = docId.split(":", limit = 2)
+            if (split.size != 2) {
+                return null
+            }
+            
+            val type = split[0]  // "primary" or volume ID
+            val relativePath = split[1]  // e.g., "Downloads/test.py"
+            
+            // For primary storage, use Environment.getExternalStorageDirectory()
+            val basePath = if (type == "primary") {
+                android.os.Environment.getExternalStorageDirectory().absolutePath
+            } else {
+                // For other volumes (SD cards), try to find the mount point
+                val externalDirs = context.getExternalFilesDirs(null)
+                externalDirs.find { it.path.contains(type) }?.parentFile?.parentFile?.parentFile?.absolutePath
+                    ?: return null
+            }
+            
+            val fullPath = "$basePath/$relativePath"
+            
+            // Verify the file exists
+            val file = java.io.File(fullPath)
+            if (file.exists()) fullPath else null
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to extract path from document URI")
+            null
+        }
+    }
+    
+    /**
+     * Copy SAF file to cache directory
+     */
+    private fun copySafFileToCache(context: Context, uri: android.net.Uri, fileName: String): java.io.File? {
+        return try {
+            val cacheDir = context.cacheDir
+            val tempFile = java.io.File(cacheDir, fileName)
+            
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                tempFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            
+            tempFile
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to copy SAF file to cache")
+            null
         }
     }
 

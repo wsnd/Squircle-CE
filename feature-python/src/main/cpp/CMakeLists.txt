@@ -25,10 +25,10 @@ add_library(
 
 # Include Python headers
 target_include_directories(python_bridge PRIVATE
-    ${JNI_LIBS_DIR}/arm64-v8a/prefix/include/python3.14
+    ${JNI_LIBS_DIR}/${ANDROID_ABI}/prefix/include/python3.14
 )
 target_include_directories(python_repl_native PRIVATE
-    ${JNI_LIBS_DIR}/arm64-v8a/prefix/include/python3.14
+    ${JNI_LIBS_DIR}/${ANDROID_ABI}/prefix/include/python3.14
 )
 
 # Find required libraries

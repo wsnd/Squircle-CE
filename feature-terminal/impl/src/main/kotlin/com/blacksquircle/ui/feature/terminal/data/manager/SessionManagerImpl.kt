@@ -109,22 +109,75 @@ internal class SessionManagerImpl(
         if (!binDir.exists()) binDir.mkdirs()
 
         val nativeLibDir = context.applicationInfo.nativeLibraryDir
-        val pythonExe = File(nativeLibDir, "libpython_exe.so")
-        val pythonLink = File(binDir, "python")
-        val pipLink = File(binDir, "pip")
+        val candidates = listOf(
+            File(nativeLibDir, "libpython_exe.so"),
+            File(nativeLibDir, "python3"), // Some systems might extract it differently
+            File(nativeLibDir, "python")
+        )
+        
+        val pythonExe = candidates.find { it.exists() }
 
         try {
-            if (pythonExe.exists()) {
-                pythonLink.delete()
-                android.system.Os.symlink(pythonExe.absolutePath, pythonLink.absolutePath)
+            if (pythonExe != null) {
+                // Ensure executable permission
+                if (!pythonExe.canExecute()) {
+                    pythonExe.setExecutable(true)
+                }
+                
+                val links = listOf("python", "python3", "python3.14")
+                links.forEach { name ->
+                    val link = File(binDir, name)
+                    if (link.exists()) link.delete()
+                    android.system.Os.symlink(pythonExe.absolutePath, link.absolutePath)
+                }
+                Timber.d("Setup bin directory: python linked to ${pythonExe.absolutePath}")
+            } else {
+                Timber.e("Python executable not found in native library directory: $nativeLibDir")
+                // Check if we can find it in the architecture-specific subfolder (sometimes happens)
+                val abi = android.os.Build.SUPPORTED_ABIS[0]
+                val abiDir = File(nativeLibDir, abi)
+                if (abiDir.exists()) {
+                    val abiPython = File(abiDir, "libpython_exe.so")
+                    if (abiPython.exists()) {
+                        abiPython.setExecutable(true)
+                        listOf("python", "python3", "python3.14").forEach { name ->
+                            val link = File(binDir, name)
+                            if (link.exists()) link.delete()
+                            android.system.Os.symlink(abiPython.absolutePath, link.absolutePath)
+                        }
+                        Timber.d("Setup bin directory: python linked to ${abiPython.absolutePath} (ABI subfolder)")
+                    }
+                }
             }
             
-            if (!pipLink.exists()) {
-                pipLink.writeText("#!/system/bin/sh\npython -m pip \"$@\"\n")
-                pipLink.setExecutable(true, false)
-            }
+            // Create shims for common build tools to provide better error messages
+            setupBuildShims(binDir)
         } catch (e: Exception) {
             Timber.e(e, "Failed to setup bin directory")
+        }
+    }
+
+    private fun setupBuildShims(binDir: File) {
+        val shims = listOf("make", "gcc", "g++", "cc", "c++", "cmake", "ninja")
+        val shimContent = """
+            #!/system/bin/sh
+            echo "Error: Build tool '${'$'}(basename ${'$'}0)' is not available in the mobile environment."
+            echo "Native compilation is not supported on-device in Squircle-CE."
+            echo "Please use pre-compiled wheels: pip install <package> --only-binary=:all:"
+            exit 1
+        """.trimIndent()
+
+        shims.forEach { shim ->
+            val shimFile = File(binDir, shim)
+            try {
+                if (shimFile.exists()) {
+                    shimFile.delete()
+                }
+                shimFile.writeText(shimContent)
+                shimFile.setExecutable(true)
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to create shim: ${'$'}shim")
+            }
         }
     }
 
@@ -137,7 +190,8 @@ internal class SessionManagerImpl(
 
         val binDir = File(context.filesDir, "bin").absolutePath
         val currentPath = System.getenv(ENV_PATH).orEmpty()
-        env[ENV_PATH] = if (currentPath.contains(binDir)) currentPath else "$binDir:$currentPath"
+        // Always put binDir at the front to prioritize our shims/symlinks
+        env[ENV_PATH] = if (currentPath.isEmpty()) binDir else "$binDir:$currentPath"
 
         putToEnvIfInSystemEnv(env, "ANDROID_ASSETS")
         putToEnvIfInSystemEnv(env, "ANDROID_DATA")
@@ -179,16 +233,54 @@ internal class SessionManagerImpl(
         try {
             // Setup the 'init.sh' script with pip check and prompt
             val sitePackages = "$pythonPath/lib/python3.14/site-packages"
+            val dollarSign = "\$"
             val initContent = """
                 # Silent initialization
-                if [ ! -d "$sitePackages/pip" ]; then
+                export sitePackages="$pythonPath/lib/python3.14/site-packages"
+                
+                # Check if python works, set alias if PATH lookup fails (extra safety)
+                if ! command -v python > /dev/null 2>&1; then
+                    if [ -f "$binDir/python" ]; then
+                         alias python="$binDir/python"
+                    elif [ -f "$nativeLibDir/libpython_exe.so" ]; then
+                         alias python="$nativeLibDir/libpython_exe.so"
+                    fi
+                fi
+
+                if [ ! -d "$dollarSign{sitePackages}/pip" ]; then
                     echo "Initializing pip (one-time setup)..."
                     python -m ensurepip --default-pip > /dev/null 2>&1
+                    if [ $dollarSign? -ne 0 ]; then
+                        echo "❌ Failed to initialize pip."
+                    fi
                 fi
                 echo "Python 3.14 environment initialized."
                 
+                # Define pip as a shell function to avoid noexec issues
+                pip() {
+                    python -m pip "$dollarSign@" \
+                        --index-url https://anshdadwal.is-a.dev/p4a-wheels/p4a/ \
+                        --extra-index-url https://pypi.org/simple \
+                        --only-binary=:all:
+                    local exit_code=$dollarSign?
+                    
+                    # Fix platform tag mismatch (.linux-gnu.so -> .linux-android.so)
+                    if [ $dollarSign{exit_code} -eq 0 ]; then
+                        echo "Checking for platform tag mismatches in $dollarSign{sitePackages}..."
+                        find "$dollarSign{sitePackages}" -name "*.linux-gnu.so" | while read -r file; do
+                            new_file=$dollarSign(echo "$dollarSign{file}" | sed 's/\.linux-gnu\.so$/\.linux-android\.so/')
+                            mv "$dollarSign{file}" "$dollarSign{new_file}"
+                        done
+                    else
+                        echo ""
+                        echo "Error: pip command failed (exit code: $dollarSign{exit_code})"
+                        echo "Note: Native compilation is NOT supported. Only pre-compiled wheels can be installed."
+                    fi
+                    return $dollarSign{exit_code}
+                }
+                
                 # Show current folder name in prompt
-                export PS1='${"$"}{PWD##*/} ${"$"}'
+                export PS1='${dollarSign}{PWD##*/} ${dollarSign}'
             """.trimIndent()
             initScript.writeText(initContent)
         } catch (e: Exception) {
@@ -199,9 +291,10 @@ internal class SessionManagerImpl(
         setupCommonEnvironment(environment, runtime)
         
         // Setup Python specific environment
+        val sitePackages = "$pythonPath/lib/python3.14/site-packages"
         environment["PYTHONHOME"] = pythonPath ?: ""
-        environment["PYTHONPATH"] = "$pythonPath/lib/python3.14:$pythonPath/lib/python3.14/lib-dynload:$pythonPath/lib/python3.14/site-packages"
-        environment["LD_LIBRARY_PATH"] = "$nativeLibDir:$pythonPath/lib/python3.14/lib-dynload"
+        environment["PYTHONPATH"] = "$pythonPath/lib/python3.14:$pythonPath/lib/python3.14/lib-dynload:$sitePackages"
+        environment["LD_LIBRARY_PATH"] = "$nativeLibDir:$pythonPath/lib/python3.14/lib-dynload:$sitePackages/numpy/_core"
         environment["PYTHONUNBUFFERED"] = "1"
         environment["ENV"] = initScript.absolutePath
         

@@ -18,31 +18,21 @@ package com.blacksquircle.ui.feature.editor.ui.editor.compose
 
 import android.view.KeyEvent
 import android.view.ViewGroup
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorCommand
 import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorController
 import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorSettings
-import com.blacksquircle.ui.feature.editor.ui.editor.view.CodeEditor
-import com.blacksquircle.ui.feature.editor.ui.editor.view.SquircleScheme
-import com.blacksquircle.ui.feature.editor.ui.editor.view.createFromRegistry
-import com.blacksquircle.ui.feature.editor.ui.editor.view.deleteLine
-import com.blacksquircle.ui.feature.editor.ui.editor.view.endOfLine
-import com.blacksquircle.ui.feature.editor.ui.editor.view.nextWord
-import com.blacksquircle.ui.feature.editor.ui.editor.view.previousWord
-import com.blacksquircle.ui.feature.editor.ui.editor.view.selectLine
-import com.blacksquircle.ui.feature.editor.ui.editor.view.startOfLine
-import com.blacksquircle.ui.feature.editor.ui.editor.view.toggleCase
+import com.blacksquircle.ui.feature.editor.ui.editor.view.*
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.event.KeyBindingEvent
 import io.github.rosemoe.sora.text.Content
 import io.github.rosemoe.sora.util.regex.RegexBackrefGrammar
 import io.github.rosemoe.sora.widget.EditorSearcher.SearchOptions
 import io.github.rosemoe.sora.widget.subscribeAlways
+import com.blacksquircle.ui.feature.shortcuts.api.extensions.forAction
 
 @Composable
 internal fun CodeEditor(
@@ -55,6 +45,12 @@ internal fun CodeEditor(
     onShortcutPressed: (Boolean, Boolean, Boolean, Int) -> Unit = { _, _, _, _ -> },
 ) {
     val context = LocalContext.current
+    
+    // Remember the LATEST callbacks to avoid stale closures in listeners
+    val currentOnContentChanged by rememberUpdatedState(onContentChanged)
+    val currentOnShortcutPressed by rememberUpdatedState(onShortcutPressed)
+    val currentSettings by rememberUpdatedState(settings)
+
     val view = remember {
         CodeEditor(context).apply {
             layoutParams = ViewGroup.LayoutParams(
@@ -63,7 +59,7 @@ internal fun CodeEditor(
             )
             subscribeAlways<ContentChangeEvent> { event ->
                 if (event.action != ContentChangeEvent.ACTION_SET_NEW_TEXT) {
-                    onContentChanged()
+                    currentOnContentChanged()
                 }
             }
             subscribeAlways<KeyBindingEvent> { event ->
@@ -71,49 +67,93 @@ internal fun CodeEditor(
                     val ctrl = event.isCtrlPressed
                     val shift = (event.metaState and KeyEvent.META_SHIFT_ON) != 0
                     val alt = (event.metaState and KeyEvent.META_ALT_ON) != 0
-                    if (ctrl || alt) {
+                    
+                    // ONLY intercept if a shortcut is actually matched
+                    val shortcut = currentSettings.keybindings.forAction(ctrl, shift, alt, event.keyCode)
+                    if (shortcut != null) {
                         event.intercept()
-                        onShortcutPressed(ctrl, shift, alt, event.keyCode)
+                        currentOnShortcutPressed(ctrl, shift, alt, event.keyCode)
                     }
                 }
             }
             colorScheme = SquircleScheme.create()
+            isFocusable = true
+            isFocusableInTouchMode = true
         }
     }
+
+    // Stable tracking of previous state to avoid redundant calls that restart IME
+    var lastLanguageName by remember { mutableStateOf("") }
+    var lastSettingsRef by remember { mutableStateOf<EditorSettings?>(null) }
+    var lastContentRef by remember { mutableStateOf<Content?>(null) }
+
     AndroidView(
         factory = { view },
         update = { editor ->
-            editor.setTextSize(settings.fontSize)
-            editor.isWordwrap = settings.wordWrap
-            editor.props.stickyScroll = settings.stickyScroll
-            editor.isScalable = settings.pinchZoom
-            editor.isLineNumberEnabled = settings.lineNumbers
-            editor.isHighlightCurrentLine = settings.highlightCurrentLine
-            editor.isHighlightBracketPair = settings.highlightMatchingDelimiters
-            editor.isBlockLineEnabled = settings.highlightCodeBlocks
-            editor.isEditable = !settings.readOnly
-            editor.tabWidth = settings.tabWidth
-            editor.typefaceText = settings.fontType
-            editor.typefaceLineNumber = settings.fontType
-            editor.isDisableSoftKbdIfHardKbdAvailable = !settings.softKeyboard
-            editor.setShowInvisibleChars(settings.showInvisibleChars)
+            val settingsChanged = lastSettingsRef !== settings
+            
+            // 1. Update settings ONLY when they actually changed (Identity check)
+            if (settingsChanged) {
+                editor.setTextSize(settings.fontSize)
+                editor.isWordwrap = settings.wordWrap
+                editor.props.stickyScroll = settings.stickyScroll
+                editor.isScalable = settings.pinchZoom
+                editor.isLineNumberEnabled = settings.lineNumbers
+                editor.isHighlightCurrentLine = settings.highlightCurrentLine
+                editor.isHighlightBracketPair = settings.highlightMatchingDelimiters
+                editor.isBlockLineEnabled = settings.highlightCodeBlocks
+                
+                // Guard isEditable as it restarts IME
+                if (editor.isEditable != !settings.readOnly) {
+                    editor.isEditable = !settings.readOnly
+                }
+                
+                editor.tabWidth = settings.tabWidth
+                editor.typefaceText = settings.fontType
+                editor.typefaceLineNumber = settings.fontType
+                
+                // CRITICAL FIX: Set to false to prevent Android from blocking Enter/Shift keys 
+                // when an external keyboard is connected.
+                editor.isDisableSoftKbdIfHardKbdAvailable = false 
+                
+                editor.setShowInvisibleChars(settings.showInvisibleChars)
+            }
 
-            val editorLanguage = editor.createFromRegistry(
-                language = language,
-                codeCompletion = settings.codeCompletion,
-                autoIndentation = settings.autoIndentation,
-                autoClosePairs = settings.autoClosePairs,
-                useTab = !settings.useSpacesInsteadOfTabs,
-                tabSize = settings.tabWidth,
-            )
-            editor.setEditorLanguage(editorLanguage)
-            editor.setText(content)
-            editor.scroller.startScroll(0, 0, content.scrollX, content.scrollY, 0)
-            editor.scroller.abortAnimation()
+            // 2. Update language ONLY on change to avoid InputMethod restart
+            if (lastLanguageName != language || (settingsChanged && lastSettingsRef?.tabWidth != settings.tabWidth)) {
+                val editorLanguage = editor.createFromRegistry(
+                    language = language,
+                    codeCompletion = settings.codeCompletion,
+                    autoIndentation = settings.autoIndentation,
+                    autoClosePairs = settings.autoClosePairs,
+                    useTab = !settings.useSpacesInsteadOfTabs,
+                    tabSize = settings.tabWidth,
+                )
+                editor.setEditorLanguage(editorLanguage)
+                lastLanguageName = language
+            }
+            
+            if (settingsChanged) {
+                lastSettingsRef = settings
+            }
+
+            // 3. CRITICAL FIX: Only call setText if the Content object INSTANCE has changed (file swap).
+            // Calling setText(currentContent) on every keystroke restarts the IME and KILLS 'Enter'.
+            if (lastContentRef !== content) {
+                editor.setText(content, true, null)
+                editor.scroller.startScroll(0, 0, content.scrollX, content.scrollY, 0)
+                editor.scroller.abortAnimation()
+                lastContentRef = content
+            }
+            
+            if (!editor.isFocused) {
+                editor.requestFocus()
+            }
         },
         onRelease = CodeEditor::release,
         modifier = modifier,
     )
+
     LaunchedEffect(Unit) {
         controller.commands.collect { command ->
             when (command) {

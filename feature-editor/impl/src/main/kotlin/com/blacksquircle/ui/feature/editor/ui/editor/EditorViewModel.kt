@@ -1262,6 +1262,12 @@ internal class EditorViewModel @Inject constructor(
         }
     }
 
+    fun onToggleBottomPanel() {
+        _viewState.update {
+            it.copy(bottomPanelVisible = !it.bottomPanelVisible)
+        }
+    }
+
     fun onResumed() {
         viewModelScope.launch {
             try {

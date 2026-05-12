@@ -49,6 +49,7 @@ dependencies {
     implementation(project(":feature-settings:api"))
     implementation(project(":feature-shortcuts:api"))
     implementation(project(":feature-terminal:api"))
+    implementation(project(":feature-terminal:impl"))
     implementation(project(":feature-themes:api"))
     implementation(project(":filesystems:filesystem-local"))
     implementation(project(":filesystems:filesystem-saf"))

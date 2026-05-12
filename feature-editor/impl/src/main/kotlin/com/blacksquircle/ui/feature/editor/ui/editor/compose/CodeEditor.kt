@@ -34,6 +34,8 @@ import io.github.rosemoe.sora.widget.EditorSearcher.SearchOptions
 import io.github.rosemoe.sora.widget.subscribeAlways
 import com.blacksquircle.ui.feature.shortcuts.api.extensions.forAction
 
+import io.github.rosemoe.sora.event.SelectionChangeEvent
+
 @Composable
 internal fun CodeEditor(
     content: Content,
@@ -42,12 +44,14 @@ internal fun CodeEditor(
     controller: EditorController,
     modifier: Modifier = Modifier,
     onContentChanged: () -> Unit = {},
+    onCursorChanged: (Int, Int) -> Unit = { _, _ -> },
     onShortcutPressed: (Boolean, Boolean, Boolean, Int) -> Unit = { _, _, _, _ -> },
 ) {
     val context = LocalContext.current
     
     // Remember the LATEST callbacks to avoid stale closures in listeners
     val currentOnContentChanged by rememberUpdatedState(onContentChanged)
+    val currentOnCursorChanged by rememberUpdatedState(onCursorChanged)
     val currentOnShortcutPressed by rememberUpdatedState(onShortcutPressed)
     val currentSettings by rememberUpdatedState(settings)
 
@@ -61,6 +65,12 @@ internal fun CodeEditor(
                 if (event.action != ContentChangeEvent.ACTION_SET_NEW_TEXT) {
                     currentOnContentChanged()
                 }
+            }
+            subscribeAlways<SelectionChangeEvent> { event ->
+                currentOnCursorChanged(
+                    event.left.line + 1,
+                    event.left.column + 1
+                )
             }
             subscribeAlways<KeyBindingEvent> { event ->
                 if (event.action == KeyEvent.ACTION_DOWN) {

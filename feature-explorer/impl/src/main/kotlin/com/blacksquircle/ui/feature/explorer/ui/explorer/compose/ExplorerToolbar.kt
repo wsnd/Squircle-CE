@@ -50,6 +50,13 @@ import com.blacksquircle.ui.feature.explorer.ui.explorer.menu.SortingMenu
 import com.blacksquircle.ui.feature.explorer.ui.explorer.model.FileNode
 import com.blacksquircle.ui.ds.R as UiR
 
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import com.blacksquircle.ui.ds.layout.SquircleLayout
+import com.blacksquircle.ui.ds.layout.WindowSize
+
 @Composable
 internal fun ExplorerToolbar(
     workspaceType: WorkspaceType,
@@ -75,133 +82,190 @@ internal fun ExplorerToolbar(
     onCompressClicked: () -> Unit = {},
     onBackClicked: () -> Unit = {},
 ) {
+    val windowSize = SquircleLayout.windowSize
+    val isExpanded = windowSize == WindowSize.Expanded
+
     val selectionMode = selection.isNotEmpty()
     val rootSelected = selection.size == 1 && selection[0].isRoot
 
     var searchMode by rememberSaveable { mutableStateOf(false) }
     var expanded by rememberSaveable { mutableStateOf(false) }
 
-    Toolbar(
-        title = if (selectionMode) selection.size.toString() else null,
-        navigationIcon = if (selectionMode) UiR.drawable.ic_back else null,
-        onNavigationClicked = onBackClicked,
-        navigationActions = {
-            if (selectionMode) {
-                BackHandler {
-                    onBackClicked()
-                }
-            } else if (searchMode) {
-                val focusRequester = remember { FocusRequester() }
-                TextField(
-                    inputText = searchQuery,
-                    onInputChanged = onQueryChanged,
-                    placeholderText = stringResource(android.R.string.search_go),
-                    startContent = {
-                        Icon(
-                            painter = painterResource(UiR.drawable.ic_search),
-                            contentDescription = null,
-                            tint = SquircleTheme.colors.colorTextAndIconSecondary,
-                            modifier = Modifier.padding(8.dp),
-                        )
-                    },
-                    endContent = {
-                        IconButton(
-                            iconResId = UiR.drawable.ic_close,
-                            iconButtonStyle = IconButtonStyleDefaults.Secondary,
-                            iconButtonSize = IconButtonSizeDefaults.S,
-                            onClick = { onClearQueryClicked(); searchMode = false },
-                        )
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 4.dp)
-                        .focusRequester(focusRequester)
-                )
-                LaunchedEffect(Unit) {
-                    focusRequester.requestFocus()
-                }
-                BackHandler {
-                    onClearQueryClicked()
-                    searchMode = false
-                }
-            } else {
-                Spacer(Modifier.weight(1f))
-            }
+    if (isExpanded && !selectionMode) {
+        // VS Code style Sidebar Header
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.explorer_workspace_button_files).uppercase(),
+                style = SquircleTheme.typography.text12Regular,
+                fontWeight = FontWeight.Bold,
+                color = SquircleTheme.colors.colorTextAndIconSecondary,
+                modifier = Modifier.weight(1f)
+            )
 
-            /** Don't show file actions if root node is selected */
-            if (rootSelected) {
-                return@Toolbar
-            }
-
-            if (!searchMode && !selectionMode) {
-                IconButton(
-                    iconResId = UiR.drawable.ic_search,
-                    onClick = { searchMode = true },
-                    contentDescription = stringResource(android.R.string.search_go)
-                )
-            }
-
-            if (selectionMode) {
-                if (workspaceType.isLocal()) {
-                    IconButton(
-                        iconResId = UiR.drawable.ic_copy,
-                        onClick = onCopyClicked,
-                        contentDescription = stringResource(android.R.string.copy),
-                    )
-                }
-                IconButton(
-                    iconResId = UiR.drawable.ic_delete,
-                    onClick = onDeleteClicked,
-                    contentDescription = stringResource(R.string.explorer_menu_selection_delete)
-                )
-            }
-
+            IconButton(
+                iconResId = UiR.drawable.ic_search,
+                onClick = { searchMode = !searchMode },
+                iconButtonSize = IconButtonSizeDefaults.S,
+                contentDescription = stringResource(android.R.string.search_go)
+            )
+            
             IconButton(
                 iconResId = UiR.drawable.ic_dots_vertical,
                 onClick = { expanded = true },
+                iconButtonSize = IconButtonSizeDefaults.S,
                 contentDescription = stringResource(UiR.string.common_menu),
                 anchor = {
-                    if (selectionMode) {
-                        SelectionMenu(
-                            selection = selection,
-                            workspaceType = workspaceType,
-                            expanded = expanded,
-                            onDismiss = { expanded = false },
-                            onCutClicked = { expanded = false; onCutClicked() },
-                            onOpenWithClicked = { expanded = false; onOpenWithClicked() },
-                            onOpenTerminalClicked = { expanded = false; onOpenTerminalClicked() },
-                            onRenameClicked = { expanded = false; onRenameClicked() },
-                            onPropertiesClicked = { expanded = false; onPropertiesClicked() },
-                            onCopyPathClicked = { expanded = false; onCopyPathClicked() },
-                            onCompressClicked = { expanded = false; onCompressClicked() },
-                        )
-                    } else {
-                        SortingMenu(
-                            expanded = expanded,
-                            onDismiss = { expanded = false },
-                            showHidden = showHidden,
-                            compactPackages = compactPackages,
-                            sortMode = sortMode,
-                            onShowHiddenClicked = {
-                                expanded = false
-                                onShowHiddenClicked()
-                            },
-                            onCompactPackagesClicked = {
-                                expanded = false
-                                onCompactPackagesClicked()
-                            },
-                            onSortModeSelected = {
-                                expanded = false
-                                onSortModeSelected(it)
-                            },
-                        )
-                    }
+                    SortingMenu(
+                        expanded = expanded,
+                        onDismiss = { expanded = false },
+                        showHidden = showHidden,
+                        compactPackages = compactPackages,
+                        sortMode = sortMode,
+                        onShowHiddenClicked = {
+                            expanded = false
+                            onShowHiddenClicked()
+                        },
+                        onCompactPackagesClicked = {
+                            expanded = false
+                            onCompactPackagesClicked()
+                        },
+                        onSortModeSelected = {
+                            expanded = false
+                            onSortModeSelected(it)
+                        },
+                    )
                 }
             )
-        },
-        toolbarSize = ToolbarSizeDefaults.M.copy(shadowSize = 0.dp),
-        modifier = modifier,
-    )
+        }
+    } else {
+        Toolbar(
+            title = if (selectionMode) selection.size.toString() else null,
+            navigationIcon = if (selectionMode) UiR.drawable.ic_back else null,
+            onNavigationClicked = onBackClicked,
+            navigationActions = {
+                if (selectionMode) {
+                    BackHandler {
+                        onBackClicked()
+                    }
+                } else if (searchMode) {
+                    val focusRequester = remember { FocusRequester() }
+                    TextField(
+                        inputText = searchQuery,
+                        onInputChanged = onQueryChanged,
+                        placeholderText = stringResource(android.R.string.search_go),
+                        startContent = {
+                            Icon(
+                                painter = painterResource(UiR.drawable.ic_search),
+                                contentDescription = null,
+                                tint = SquircleTheme.colors.colorTextAndIconSecondary,
+                                modifier = Modifier.padding(8.dp),
+                            )
+                        },
+                        endContent = {
+                            IconButton(
+                                iconResId = UiR.drawable.ic_close,
+                                iconButtonStyle = IconButtonStyleDefaults.Secondary,
+                                iconButtonSize = IconButtonSizeDefaults.S,
+                                onClick = { onClearQueryClicked(); searchMode = false },
+                            )
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 4.dp)
+                            .focusRequester(focusRequester)
+                    )
+                    LaunchedEffect(Unit) {
+                        focusRequester.requestFocus()
+                    }
+                    BackHandler {
+                        onClearQueryClicked()
+                        searchMode = false
+                    }
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
+
+                /** Don't show file actions if root node is selected */
+                if (rootSelected) {
+                    return@Toolbar
+                }
+
+                if (!searchMode && !selectionMode) {
+                    IconButton(
+                        iconResId = UiR.drawable.ic_search,
+                        onClick = { searchMode = true },
+                        contentDescription = stringResource(android.R.string.search_go)
+                    )
+                }
+
+                if (selectionMode) {
+                    if (workspaceType.isLocal()) {
+                        IconButton(
+                            iconResId = UiR.drawable.ic_copy,
+                            onClick = onCopyClicked,
+                            contentDescription = stringResource(android.R.string.copy),
+                        )
+                    }
+                    IconButton(
+                        iconResId = UiR.drawable.ic_delete,
+                        onClick = onDeleteClicked,
+                        contentDescription = stringResource(R.string.explorer_menu_selection_delete)
+                    )
+                }
+
+                IconButton(
+                    iconResId = UiR.drawable.ic_dots_vertical,
+                    onClick = { expanded = true },
+                    contentDescription = stringResource(UiR.string.common_menu),
+                    anchor = {
+                        if (selectionMode) {
+                            SelectionMenu(
+                                selection = selection,
+                                workspaceType = workspaceType,
+                                expanded = expanded,
+                                onDismiss = { expanded = false },
+                                onCutClicked = { expanded = false; onCutClicked() },
+                                onOpenWithClicked = { expanded = false; onOpenWithClicked() },
+                                onOpenTerminalClicked = { expanded = false; onOpenTerminalClicked() },
+                                onRenameClicked = { expanded = false; onRenameClicked() },
+                                onPropertiesClicked = { expanded = false; onPropertiesClicked() },
+                                onCopyPathClicked = { expanded = false; onCopyPathClicked() },
+                                onCompressClicked = { expanded = false; onCompressClicked() },
+                            )
+                        } else {
+                            SortingMenu(
+                                expanded = expanded,
+                                onDismiss = { expanded = false },
+                                showHidden = showHidden,
+                                compactPackages = compactPackages,
+                                sortMode = sortMode,
+                                onShowHiddenClicked = {
+                                    expanded = false
+                                    onShowHiddenClicked()
+                                },
+                                onCompactPackagesClicked = {
+                                    expanded = false
+                                    onCompactPackagesClicked()
+                                },
+                                onSortModeSelected = {
+                                    expanded = false
+                                    onSortModeSelected(it)
+                                },
+                            )
+                        }
+                    }
+                )
+            },
+            toolbarSize = ToolbarSizeDefaults.M.copy(shadowSize = 0.dp),
+            modifier = modifier,
+        )
+    }
 }
 
 @PreviewLightDark

@@ -46,6 +46,8 @@ import com.blacksquircle.ui.ds.PreviewBackground
 import com.blacksquircle.ui.ds.SquircleTheme
 import com.blacksquircle.ui.ds.divider.VerticalDivider
 import com.blacksquircle.ui.ds.emptyview.EmptyView
+import com.blacksquircle.ui.ds.layout.SquircleLayout
+import com.blacksquircle.ui.ds.layout.WindowSize
 import com.blacksquircle.ui.ds.progress.CircularProgress
 import com.blacksquircle.ui.ds.scaffold.ScaffoldSuite
 import com.blacksquircle.ui.feature.explorer.data.utils.openFileWith
@@ -87,9 +89,13 @@ internal fun ExplorerScreen(
     },
     closeDrawer: () -> Unit = {},
 ) {
+    val windowSize = SquircleLayout.windowSize
+    val isExpanded = windowSize == WindowSize.Expanded
+
     val viewState by viewModel.viewState.collectAsStateWithLifecycle()
     ExplorerScreen(
         viewState = viewState,
+        isExpanded = isExpanded,
         onBackClicked = viewModel::onBackClicked,
         onWorkspaceClicked = viewModel::onWorkspaceClicked,
         onAddWorkspaceClicked = viewModel::onAddWorkspaceClicked,
@@ -181,6 +187,7 @@ internal fun ExplorerScreen(
 @Composable
 private fun ExplorerScreen(
     viewState: ExplorerViewState,
+    isExpanded: Boolean = false,
     onBackClicked: () -> Unit = {},
     onWorkspaceClicked: (WorkspaceModel) -> Unit = {},
     onAddWorkspaceClicked: () -> Unit = {},
@@ -209,16 +216,18 @@ private fun ExplorerScreen(
     onRefreshClicked: () -> Unit = {},
 ) {
     Row(Modifier.fillMaxSize()) {
-        Workspaces(
-            workspaces = viewState.workspaces,
-            selectedWorkspace = viewState.selectedWorkspace,
-            onWorkspaceClicked = onWorkspaceClicked,
-            onAddWorkspaceClicked = onAddWorkspaceClicked,
-            onDeleteWorkspaceClicked = onDeleteWorkspaceClicked,
-        )
+        if (!isExpanded) {
+            Workspaces(
+                workspaces = viewState.workspaces,
+                selectedWorkspace = viewState.selectedWorkspace,
+                onWorkspaceClicked = onWorkspaceClicked,
+                onAddWorkspaceClicked = onAddWorkspaceClicked,
+                onDeleteWorkspaceClicked = onDeleteWorkspaceClicked,
+            )
 
-        if (!SquircleTheme.colors.isDark) {
-            VerticalDivider()
+            if (!SquircleTheme.colors.isDark) {
+                VerticalDivider()
+            }
         }
 
         ScaffoldSuite(

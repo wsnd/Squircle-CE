@@ -19,27 +19,20 @@ package com.blacksquircle.ui.feature.terminal.ui.terminal
 import android.graphics.Typeface
 import android.view.WindowManager
 import androidx.activity.compose.LocalActivity
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,6 +50,7 @@ import com.blacksquircle.ui.ds.SquircleTheme
 import com.blacksquircle.ui.ds.button.IconButton
 import com.blacksquircle.ui.ds.button.IconButtonSizeDefaults
 import com.blacksquircle.ui.ds.button.IconButtonStyleDefaults
+import com.blacksquircle.ui.ds.divider.HorizontalDivider
 import com.blacksquircle.ui.ds.scaffold.ScaffoldSuite
 import com.blacksquircle.ui.ds.tabs.TabItem
 import com.blacksquircle.ui.ds.tabs.TabLayout
@@ -82,6 +76,32 @@ private const val EXTRA_KEYS_PROPERTIES = "[" +
     "['ESC','/',{key: '-', popup: '|'},'HOME','UP','END','PGUP'], " +
     "['TAB','CTRL','ALT','LEFT','DOWN','RIGHT','PGDN']" +
     "]"
+
+@Composable
+fun TerminalPanel(
+    modifier: Modifier = Modifier,
+    headerModifier: Modifier = Modifier,
+    onCloseClicked: () -> Unit = {}
+) {
+    val viewModel: TerminalViewModel = daggerViewModel { context ->
+        val component = TerminalComponent.buildOrGet(context)
+        TerminalViewModel.ParameterizedFactory(null).also(component::inject)
+    }
+    val viewState by viewModel.viewState.collectAsStateWithLifecycle()
+    val tabsState = rememberLazyListState()
+
+    TerminalScreen(
+        viewState = viewState,
+        tabsState = tabsState,
+        onSessionClicked = viewModel::onSessionClicked,
+        onCreateSessionClicked = viewModel::onCreateSessionClicked,
+        onCloseSessionClicked = viewModel::onCloseSessionClicked,
+        onCloseClicked = onCloseClicked,
+        isPanel = true,
+        headerModifier = headerModifier,
+        modifier = modifier
+    )
+}
 
 @Composable
 internal fun TerminalScreen(
@@ -149,9 +169,13 @@ private fun TerminalScreen(
     onCreateSessionClicked: () -> Unit = {},
     onCloseSessionClicked: (SessionModel) -> Unit = {},
     onBackClicked: () -> Unit = {},
+    onCloseClicked: () -> Unit = {},
+    isPanel: Boolean = false,
+    headerModifier: Modifier = Modifier,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val textSize = with(LocalDensity.current) { 12.sp.toPx() }
+    val textSize = with(LocalDensity.current) { 10.sp.toPx() } // Even smaller font size
     val backgroundColor = SquircleTheme.colors.colorBackgroundPrimary.toArgb()
     val foregroundColor = SquircleTheme.colors.colorTextAndIconPrimary.toArgb()
     val activeBackgroundColor = SquircleTheme.colors.colorBackgroundTertiary.toArgb()
@@ -191,105 +215,149 @@ private fun TerminalScreen(
         }
     }
 
-    ScaffoldSuite(
-        topBar = {
-            Toolbar(
-                title = stringResource(R.string.terminal_toolbar_title),
-                navigationIcon = UiR.drawable.ic_back,
-                onNavigationClicked = onBackClicked,
-            )
-        },
-        bottomBar = {
-            if (!viewState.isInstalling) {
-                AndroidView(
-                    factory = { extraKeysView },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(EXTRA_KEYS_HEIGHT)
-                        .navigationBarsPadding()
-                )
-            }
-        },
-        modifier = Modifier.imePadding()
-    ) { contentPadding ->
+    val content = @Composable { paddingValues: PaddingValues ->
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
-                .padding(contentPadding)
+                .padding(paddingValues)
         ) {
             if (viewState.isInstalling) {
                 InstallationScreen(
                     installProgress = viewState.installProgress,
                     installError = viewState.installError,
                 )
-                return@ScaffoldSuite
-            }
-
-            val currentSession = viewState.currentSession
-                ?: return@ScaffoldSuite
-
-            TabLayout(
-                state = tabsState,
-                trailingContent = {
-                    IconButton(
-                        iconResId = UiR.drawable.ic_plus,
-                        onClick = onCreateSessionClicked,
-                        contentDescription = stringResource(R.string.terminal_menu_session_new),
-                        iconButtonSize = IconButtonSizeDefaults.XS,
-                    )
-                }
-            ) {
-                items(
-                    items = viewState.sessions,
-                    key = SessionModel::id,
-                ) { sessionModel ->
-                    TabItem(
-                        title = if (sessionModel.ordinal > 0) {
-                            sessionModel.name + " (${sessionModel.ordinal})"
-                        } else {
-                            sessionModel.name
+            } else {
+                val currentSession = viewState.currentSession
+                if (currentSession != null) {
+                    TabLayout(
+                        state = tabsState,
+                        divider = false,
+                        modifier = Modifier
+                            .height(28.dp)
+                            .then(headerModifier), // Entire header is now draggable
+                        leadingContent = {
+                            if (isPanel) {
+                                Text(
+                                    text = stringResource(R.string.terminal_toolbar_title).uppercase(),
+                                    style = SquircleTheme.typography.text12Regular,
+                                    fontSize = 10.sp, // Smallest font size
+                                    fontWeight = FontWeight.Bold,
+                                    color = SquircleTheme.colors.colorTextAndIconSecondary,
+                                    modifier = Modifier.padding(start = 16.dp, end = 8.dp)
+                                )
+                            }
                         },
-                        selected = sessionModel.id == currentSession.id,
-                        paddingValues = PaddingValues(start = 12.dp),
-                        onClick = { onSessionClicked(sessionModel) },
                         trailingContent = {
-                            IconButton(
-                                iconResId = UiR.drawable.ic_close,
-                                iconButtonStyle = IconButtonStyleDefaults.Secondary,
-                                onClick = { onCloseSessionClicked(sessionModel) },
-                                contentDescription = stringResource(R.string.terminal_menu_session_close),
-                                iconButtonSize = IconButtonSizeDefaults.XXS,
-                                modifier = Modifier.padding(horizontal = 8.dp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    iconResId = UiR.drawable.ic_plus,
+                                    onClick = onCreateSessionClicked,
+                                    contentDescription = stringResource(R.string.terminal_menu_session_new),
+                                    iconButtonSize = IconButtonSizeDefaults.XS,
+                                )
+                                if (isPanel) {
+                                    IconButton(
+                                        iconResId = UiR.drawable.ic_close,
+                                        onClick = onCloseClicked,
+                                        iconButtonSize = IconButtonSizeDefaults.XS,
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+                    ) {
+                        items(
+                            items = viewState.sessions,
+                            key = SessionModel::id,
+                        ) { sessionModel ->
+                            TabItem(
+                                title = if (sessionModel.ordinal > 0) {
+                                    sessionModel.name + " (${sessionModel.ordinal})"
+                                } else {
+                                    sessionModel.name
+                                },
+                                selected = sessionModel.id == currentSession.id,
+                                height = 28.dp, // Smaller tab height
+                                textStyle = SquircleTheme.typography.text12Regular.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.sp, // Match header font
+                                ),
+                                paddingValues = PaddingValues(start = 12.dp),
+                                onClick = { onSessionClicked(sessionModel) },
+                                trailingContent = {
+                                    IconButton(
+                                        iconResId = UiR.drawable.ic_close,
+                                        iconButtonStyle = IconButtonStyleDefaults.Secondary,
+                                        onClick = { onCloseSessionClicked(sessionModel) },
+                                        contentDescription = stringResource(R.string.terminal_menu_session_close),
+                                        iconButtonSize = IconButtonSizeDefaults.XXS,
+                                        modifier = Modifier.padding(horizontal = 8.dp)
+                                    )
+                                },
                             )
-                        },
-                    )
-                }
-            }
-
-            AndroidView(
-                factory = { terminalView },
-                update = { terminalView.onScreenUpdated() },
-                modifier = Modifier.fillMaxSize()
-            )
-
-            LaunchedEffect(currentSession.id) {
-                terminalView.attachSession(currentSession.session)
-
-                currentSession.commands.collect { command ->
-                    when (command) {
-                        is TerminalCommand.Update -> {
-                            terminalView.onScreenUpdated()
-                        }
-                        is TerminalCommand.Copy -> {
-                            context.copyText(command.text)
-                        }
-                        is TerminalCommand.Paste -> {
-                            val text = context.primaryClipText()
-                            terminalView.mEmulator?.paste(text)
                         }
                     }
+
+                    AndroidView(
+                        factory = { terminalView },
+                        update = { terminalView.onScreenUpdated() },
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    LaunchedEffect(currentSession.id) {
+                        terminalView.attachSession(currentSession.session)
+
+                        currentSession.commands.collect { command ->
+                            when (command) {
+                                is TerminalCommand.Update -> {
+                                    terminalView.onScreenUpdated()
+                                }
+                                is TerminalCommand.Copy -> {
+                                    context.copyText(command.text)
+                                }
+                                is TerminalCommand.Paste -> {
+                                    val text = context.primaryClipText()
+                                    terminalView.mEmulator?.paste(text)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Empty state or loading
+                    Box(modifier = Modifier
+                        .fillMaxSize()
+                        .background(SquircleTheme.colors.colorBackgroundPrimary)
+                    )
                 }
             }
+        }
+    }
+
+    if (isPanel) {
+        content(PaddingValues())
+    } else {
+        ScaffoldSuite(
+            topBar = {
+                Toolbar(
+                    title = stringResource(R.string.terminal_toolbar_title),
+                    navigationIcon = UiR.drawable.ic_back,
+                    onNavigationClicked = onBackClicked,
+                )
+            },
+            bottomBar = {
+                if (!viewState.isInstalling) {
+                    AndroidView(
+                        factory = { extraKeysView },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(EXTRA_KEYS_HEIGHT)
+                            .navigationBarsPadding()
+                    )
+                }
+            },
+            modifier = Modifier.imePadding()
+        ) { contentPadding ->
+            content(contentPadding)
         }
     }
 }

@@ -19,26 +19,25 @@ package com.blacksquircle.ui.feature.editor.ui.editor
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.ReportDrawnWhen
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.DrawerValue
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,28 +51,30 @@ import com.blacksquircle.ui.core.extensions.daggerViewModel
 import com.blacksquircle.ui.core.extensions.showToast
 import com.blacksquircle.ui.core.mvi.ViewEvent
 import com.blacksquircle.ui.ds.PreviewBackground
+import com.blacksquircle.ui.ds.SquircleTheme
 import com.blacksquircle.ui.ds.divider.HorizontalDivider
+import com.blacksquircle.ui.ds.divider.VerticalDraggableDivider
+import com.blacksquircle.ui.ds.divider.VerticalDivider
 import com.blacksquircle.ui.ds.drawer.DrawerState
 import com.blacksquircle.ui.ds.drawer.rememberDrawerState
 import com.blacksquircle.ui.ds.emptyview.EmptyView
+import com.blacksquircle.ui.ds.layout.SquircleLayout
+import com.blacksquircle.ui.ds.layout.WindowSize
+import com.blacksquircle.ui.ds.navigationrail.NavigationRail
+import com.blacksquircle.ui.ds.navigationrail.NavigationRailItem
 import com.blacksquircle.ui.ds.progress.CircularProgress
 import com.blacksquircle.ui.ds.scaffold.ScaffoldSuite
+import com.blacksquircle.ui.ds.statusbar.StatusBar
+import com.blacksquircle.ui.ds.statusbar.StatusBarItem
 import com.blacksquircle.ui.feature.editor.R
 import com.blacksquircle.ui.feature.editor.domain.model.DocumentModel
 import com.blacksquircle.ui.feature.editor.internal.EditorComponent
-import com.blacksquircle.ui.feature.editor.ui.editor.compose.CodeEditor
-import com.blacksquircle.ui.feature.editor.ui.editor.compose.DocumentTabLayout
-import com.blacksquircle.ui.feature.editor.ui.editor.compose.EditorToolbar
-import com.blacksquircle.ui.feature.editor.ui.editor.compose.ErrorStatus
-import com.blacksquircle.ui.feature.editor.ui.editor.compose.ExtendedKeyboard
-import com.blacksquircle.ui.feature.editor.ui.editor.compose.SearchPanel
-import com.blacksquircle.ui.feature.editor.ui.editor.model.DocumentState
-import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorController
-import com.blacksquircle.ui.feature.editor.ui.editor.model.ErrorAction
-import com.blacksquircle.ui.feature.editor.ui.editor.model.rememberEditorController
+import com.blacksquircle.ui.feature.editor.ui.editor.compose.*
+import com.blacksquircle.ui.feature.editor.ui.editor.model.*
 import com.blacksquircle.ui.feature.explorer.ui.explorer.DrawerExplorer
 import com.blacksquircle.ui.feature.git.api.navigation.CheckoutRoute.Companion.KEY_CHECKOUT
 import com.blacksquircle.ui.feature.git.api.navigation.PullRoute.Companion.KEY_PULL
+import com.blacksquircle.ui.feature.terminal.ui.terminal.TerminalPanel
 import kotlinx.coroutines.launch
 import com.blacksquircle.ui.ds.R as UiR
 
@@ -95,18 +96,30 @@ internal fun EditorScreen(
     val tabsState = rememberLazyListState()
     val viewState by viewModel.viewState.collectAsStateWithLifecycle()
 
+    var line by remember { mutableIntStateOf(1) }
+    var column by remember { mutableIntStateOf(1) }
+    
+    var sidePaneWidth by rememberSaveable { mutableStateOf(300f) }
+    var bottomPanelHeight by rememberSaveable { mutableStateOf(300f) }
+
     EditorScreen(
         viewState = viewState,
         drawerState = drawerState,
         tabsState = tabsState,
         editorController = editorController,
+        line = line,
+        column = column,
+        sidePaneWidth = sidePaneWidth.dp,
+        bottomPanelHeight = bottomPanelHeight.dp,
+        onSidePaneWidthChanged = { sidePaneWidth = it.value },
+        onBottomPanelHeightChanged = { bottomPanelHeight = it.value },
+        onCursorChanged = { l, c ->
+            line = l
+            column = c
+        },
         onDrawerClicked = {
             scope.launch {
-                if (drawerState.isOpen) {
-                    drawerState.close()
-                } else {
-                    drawerState.open()
-                }
+                if (drawerState.isOpen) drawerState.close() else drawerState.open()
             }
         },
         onNewFileClicked = viewModel::onNewFileClicked,
@@ -155,26 +168,18 @@ internal fun EditorScreen(
         onErrorActionClicked = viewModel::onErrorActionClicked,
         onExtraKeyClicked = viewModel::onExtraKeyClicked,
         onExtraOptionsClicked = viewModel::onExtraOptionsClicked,
+        onToggleBottomPanel = viewModel::onToggleBottomPanel,
     )
 
     val defaultFileName = stringResource(UiR.string.common_untitled)
     val newFileContract = rememberCreateFileContract(MimeType.TEXT) { result ->
-        when (result) {
-            is ContractResult.Success -> viewModel.onFileOpened(result.uri)
-            is ContractResult.Canceled -> Unit
-        }
+        if (result is ContractResult.Success) viewModel.onFileOpened(result.uri)
     }
     val openFileContract = rememberOpenFileContract { result ->
-        when (result) {
-            is ContractResult.Success -> viewModel.onFileOpened(result.uri)
-            is ContractResult.Canceled -> Unit
-        }
+        if (result is ContractResult.Success) viewModel.onFileOpened(result.uri)
     }
     val saveFileContract = rememberCreateFileContract(MimeType.TEXT) { result ->
-        when (result) {
-            is ContractResult.Success -> viewModel.onSaveFileSelected(result.uri)
-            is ContractResult.Canceled -> Unit
-        }
+        if (result is ContractResult.Success) viewModel.onSaveFileSelected(result.uri)
     }
 
     val activity = LocalActivity.current
@@ -182,76 +187,33 @@ internal fun EditorScreen(
     LaunchedEffect(Unit) {
         viewModel.viewEvent.collect { event ->
             when (event) {
-                is ViewEvent.Toast -> {
-                    context.showToast(text = event.message)
-                }
-                is EditorViewEvent.Finish -> {
-                    activity?.finish()
-                }
-                is EditorViewEvent.ScrollToEnd -> {
-                    tabsState.animateScrollToItem(viewState.documents.size)
-                }
-                is EditorViewEvent.CreateFileContract -> {
-                    newFileContract.launch(defaultFileName)
-                }
-                is EditorViewEvent.OpenFileContract -> {
-                    openFileContract.launch(arrayOf(MimeType.ANY))
-                }
-                is EditorViewEvent.SaveAsFileContract -> {
-                    saveFileContract.launch(event.fileName)
-                }
-                is EditorViewEvent.Command -> {
-                    scope.launch {
-                        editorController.send(event.command)
-                    }
-                }
+                is ViewEvent.Toast -> context.showToast(text = event.message)
+                is EditorViewEvent.Finish -> activity?.finish()
+                is EditorViewEvent.ScrollToEnd -> tabsState.animateScrollToItem(viewState.documents.size)
+                is EditorViewEvent.CreateFileContract -> newFileContract.launch(defaultFileName)
+                is EditorViewEvent.OpenFileContract -> openFileContract.launch(arrayOf(MimeType.ANY))
+                is EditorViewEvent.SaveAsFileContract -> saveFileContract.launch(event.fileName)
+                is EditorViewEvent.Command -> scope.launch { editorController.send(event.command) }
             }
         }
     }
 
-    ResultEffect<String>(KEY_CLOSE_FILE) { fileUuid ->
-        viewModel.onCloseModifiedClicked(fileUuid)
-    }
-    ResultEffect<String>(KEY_SELECT_LANGUAGE) { language ->
-        viewModel.onLanguageChanged(language)
-    }
-    ResultEffect<Int>(KEY_GOTO_LINE) { lineNumber ->
-        viewModel.onLineSelected(lineNumber)
-    }
-    ResultEffect<Int>(KEY_INSERT_COLOR) { color ->
-        viewModel.onColorSelected(color)
-    }
-    ResultEffect<Unit>(KEY_PULL) {
-        viewModel.onReloadFileClicked()
-    }
-    ResultEffect<Unit>(KEY_CHECKOUT) {
-        viewModel.onReloadFileClicked()
-    }
+    ResultEffect<String>(KEY_CLOSE_FILE) { viewModel.onCloseModifiedClicked(it) }
+    ResultEffect<String>(KEY_SELECT_LANGUAGE) { viewModel.onLanguageChanged(it) }
+    ResultEffect<Int>(KEY_GOTO_LINE) { viewModel.onLineSelected(it) }
+    ResultEffect<Int>(KEY_INSERT_COLOR) { viewModel.onColorSelected(it) }
+    ResultEffect<Unit>(KEY_PULL) { viewModel.onReloadFileClicked() }
+    ResultEffect<Unit>(KEY_CHECKOUT) { viewModel.onReloadFileClicked() }
 
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        viewModel.onResumed()
-    }
-    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
-        viewModel.onPaused()
-    }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onResumed() }
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.onPaused() }
 
     BackHandler {
-        if (drawerState.isOpen) {
-            scope.launch {
-                drawerState.close()
-            }
-        } else {
-            viewModel.onBackClicked()
-        }
+        if (drawerState.isOpen) scope.launch { drawerState.close() } else viewModel.onBackClicked()
     }
 
-    CleanupEffect {
-        EditorComponent.release()
-    }
-
-    ReportDrawnWhen {
-        !viewState.isLoading
-    }
+    CleanupEffect { EditorComponent.release() }
+    ReportDrawnWhen { !viewState.isLoading }
 }
 
 @Composable
@@ -307,146 +269,221 @@ private fun EditorScreen(
     onErrorActionClicked: (ErrorAction) -> Unit = {},
     onExtraKeyClicked: (Char) -> Unit = {},
     onExtraOptionsClicked: () -> Unit = {},
+    onToggleBottomPanel: () -> Unit = {},
+    line: Int = 1,
+    column: Int = 1,
+    sidePaneWidth: Dp = 300.dp,
+    bottomPanelHeight: Dp = 300.dp,
+    onSidePaneWidthChanged: (Dp) -> Unit = {},
+    onBottomPanelHeightChanged: (Dp) -> Unit = {},
+    onCursorChanged: (Int, Int) -> Unit = { _, _ -> },
 ) {
-    ScaffoldSuite(
-        topBar = {
-            EditorToolbar(
-                currentDocument = viewState.currentDocument,
-                onDrawerClicked = onDrawerClicked,
-                onNewFileClicked = onNewFileClicked,
-                onOpenFileClicked = onOpenFileClicked,
-                onSaveFileClicked = onSaveFileClicked,
-                onSaveFileAsClicked = onSaveFileAsClicked,
-                onReloadFileClicked = onReloadFileClicked,
-                onRunPythonClicked = onRunPythonClicked,
-                onCutClicked = onCutClicked,
-                onCopyClicked = onCopyClicked,
-                onPasteClicked = onPasteClicked,
-                onSelectAllClicked = onSelectAllClicked,
-                onSelectLineClicked = onSelectLineClicked,
-                onDeleteLineClicked = onDeleteLineClicked,
-                onDuplicateLineClicked = onDuplicateLineClicked,
-                onUndoClicked = onUndoClicked,
-                onRedoClicked = onRedoClicked,
-                onFindClicked = onToggleFindClicked,
-                onForceSyntaxClicked = onForceSyntaxClicked,
-                onInsertColorClicked = onInsertColorClicked,
-                onFetchClicked = onFetchClicked,
-                onPullClicked = onPullClicked,
-                onCommitClicked = onCommitClicked,
-                onPushClicked = onPushClicked,
-                onCheckoutClicked = onCheckoutClicked,
-                onTerminalClicked = onTerminalClicked,
-                onSettingsClicked = onSettingsClicked,
-            )
-        },
-        bottomBar = {
-            if (viewState.showExtendedKeyboard) {
-                ExtendedKeyboard(
-                    currentDocument = viewState.currentDocument,
-                    preset = viewState.settings.keyboardPreset,
-                    showExtraKeys = viewState.showExtraKeys,
-                    readOnly = viewState.settings.readOnly,
-                    onExtraKeyClicked = onExtraKeyClicked,
-                    onExtraOptionsClicked = onExtraOptionsClicked,
-                    onSaveFileClicked = onSaveFileClicked,
-                    onReadOnlyClicked = onReadOnlyClicked,
-                    onUndoClicked = onUndoClicked,
-                    onRedoClicked = onRedoClicked,
+    val windowSize = SquircleLayout.windowSize
+    val isTablet = windowSize != WindowSize.Compact
+    
+    val currentBottomHeight by rememberUpdatedState(bottomPanelHeight)
+    val currentOnBottomHeightChanged by rememberUpdatedState(onBottomPanelHeightChanged)
+
+    Row(modifier = Modifier.fillMaxSize()) {
+        if (isTablet) {
+            NavigationRail {
+                NavigationRailItem(
+                    iconResId = UiR.drawable.ic_folder,
+                    selected = drawerState.isOpen,
+                    onClick = onDrawerClicked,
+                )
+                NavigationRailItem(
+                    iconResId = UiR.drawable.ic_console,
+                    selected = viewState.bottomPanelVisible,
+                    onClick = onToggleBottomPanel,
+                )
+                NavigationRailItem(
+                    iconResId = UiR.drawable.ic_settings,
+                    selected = false,
+                    onClick = onSettingsClicked,
                 )
             }
-        },
-        drawerState = drawerState,
-        drawerGesturesEnabled = drawerState.isOpen,
-        drawerContent = {
-            if (LocalInspectionMode.current) {
-                return@ScaffoldSuite
+            VerticalDivider()
+        }
+
+        if (isTablet && drawerState.isOpen) {
+            Surface(
+                modifier = Modifier.width(sidePaneWidth).fillMaxHeight(),
+                shape = RectangleShape,
+                color = SquircleTheme.colors.colorBackgroundSecondary
+            ) {
+                DrawerExplorer(onDrawerClicked)
             }
-            DrawerExplorer(onDrawerClicked)
-        },
-        modifier = Modifier.imePadding(),
-    ) { contentPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(contentPadding)
-        ) {
-            DocumentTabLayout(
-                tabs = viewState.documents,
-                selectedIndex = viewState.selectedDocument,
-                state = tabsState,
-                onDocumentClicked = { onDocumentClicked(it.document) },
-                onDocumentMoved = onDocumentMoved,
-                onCloseClicked = { onCloseClicked(it.document) },
-                onCloseOthersClicked = { onCloseOthersClicked(it.document) },
-                onCloseAllClicked = onCloseAllClicked,
-                modifier = Modifier.fillMaxWidth(),
+            VerticalDraggableDivider(
+                onDrag = { onSidePaneWidthChanged((sidePaneWidth + it).coerceIn(200.dp, 600.dp)) }
             )
+        }
 
-            val currentDocument = viewState.currentDocument
-            val content = currentDocument?.content
-            val searchState = currentDocument?.searchState
+        Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+            ScaffoldSuite(
+                topBar = {
+                    EditorToolbar(
+                        currentDocument = viewState.currentDocument,
+                        onDrawerClicked = onDrawerClicked,
+                        onNewFileClicked = onNewFileClicked,
+                        onOpenFileClicked = onOpenFileClicked,
+                        onSaveFileClicked = onSaveFileClicked,
+                        onSaveFileAsClicked = onSaveFileAsClicked,
+                        onReloadFileClicked = onReloadFileClicked,
+                        onRunPythonClicked = onRunPythonClicked,
+                        onCutClicked = onCutClicked,
+                        onCopyClicked = onCopyClicked,
+                        onPasteClicked = onPasteClicked,
+                        onSelectAllClicked = onSelectAllClicked,
+                        onSelectLineClicked = onSelectLineClicked,
+                        onDeleteLineClicked = onDeleteLineClicked,
+                        onDuplicateLineClicked = onDuplicateLineClicked,
+                        onUndoClicked = onUndoClicked,
+                        onRedoClicked = onRedoClicked,
+                        onFindClicked = onToggleFindClicked,
+                        onForceSyntaxClicked = onForceSyntaxClicked,
+                        onInsertColorClicked = onInsertColorClicked,
+                        onFetchClicked = onFetchClicked,
+                        onPullClicked = onPullClicked,
+                        onCommitClicked = onCommitClicked,
+                        onPushClicked = onPushClicked,
+                        onCheckoutClicked = onCheckoutClicked,
+                        onTerminalClicked = if (isTablet) onToggleBottomPanel else onTerminalClicked,
+                        onSettingsClicked = onSettingsClicked,
+                    )
+                },
+                bottomBar = {
+                    if (viewState.showExtendedKeyboard) {
+                        ExtendedKeyboard(
+                            currentDocument = viewState.currentDocument,
+                            preset = viewState.settings.keyboardPreset,
+                            showExtraKeys = viewState.showExtraKeys,
+                            readOnly = viewState.settings.readOnly,
+                            onExtraKeyClicked = onExtraKeyClicked,
+                            onExtraOptionsClicked = onExtraOptionsClicked,
+                            onSaveFileClicked = onSaveFileClicked,
+                            onReadOnlyClicked = onReadOnlyClicked,
+                            onUndoClicked = onUndoClicked,
+                            onRedoClicked = onRedoClicked,
+                        )
+                    }
+                },
+                drawerState = drawerState,
+                drawerGesturesEnabled = !isTablet && drawerState.isOpen,
+                drawerContent = if (!isTablet) { { DrawerExplorer(onDrawerClicked) } } else null,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+            ) { contentPadding ->
+                Column(modifier = Modifier.fillMaxSize().padding(contentPadding)) {
+                    DocumentTabLayout(
+                        tabs = viewState.documents,
+                        selectedIndex = viewState.selectedDocument,
+                        state = tabsState,
+                        onDocumentClicked = { onDocumentClicked(it.document) },
+                        onDocumentMoved = onDocumentMoved,
+                        onCloseClicked = { onCloseClicked(it.document) },
+                        onCloseOthersClicked = { onCloseOthersClicked(it.document) },
+                        onCloseAllClicked = onCloseAllClicked,
+                        modifier = Modifier.fillMaxWidth().height(36.dp),
+                    )
 
-            val isError = viewState.isError
-            val isLoading = viewState.isLoading
-            val isEmpty = viewState.isEmpty
+                    val currentDocument = viewState.currentDocument
+                    val searchState = currentDocument?.searchState
 
-            if (!isError && !isLoading && searchState != null) {
-                SearchPanel(
-                    searchState = searchState,
-                    onFindTextChanged = onFindTextChanged,
-                    onReplaceTextChanged = onReplaceTextChanged,
-                    onToggleReplaceClicked = onToggleReplaceClicked,
-                    onRegexClicked = onRegexClicked,
-                    onMatchCaseClicked = onMatchCaseClicked,
-                    onWordsOnlyClicked = onWordsOnlyClicked,
-                    onCloseSearchClicked = onToggleFindClicked,
-                    onPreviousMatchClicked = onPreviousMatchClicked,
-                    onNextMatchClicked = onNextMatchClicked,
-                    onReplaceMatchClicked = onReplaceMatchClicked,
-                    onReplaceAllClicked = onReplaceAllClicked,
+                    if (currentDocument != null && searchState != null) {
+                        SearchPanel(
+                            searchState = searchState,
+                            onFindTextChanged = onFindTextChanged,
+                            onReplaceTextChanged = onReplaceTextChanged,
+                            onToggleReplaceClicked = onToggleReplaceClicked,
+                            onRegexClicked = onRegexClicked,
+                            onMatchCaseClicked = onMatchCaseClicked,
+                            onWordsOnlyClicked = onWordsOnlyClicked,
+                            onCloseSearchClicked = onToggleFindClicked,
+                            onPreviousMatchClicked = onPreviousMatchClicked,
+                            onNextMatchClicked = onNextMatchClicked,
+                            onReplaceMatchClicked = onReplaceMatchClicked,
+                            onReplaceAllClicked = onReplaceAllClicked,
+                        )
+                        HorizontalDivider()
+                    }
+
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        if (currentDocument?.content != null) {
+                            key(currentDocument.document.uuid) {
+                                CodeEditor(
+                                    content = currentDocument.content,
+                                    language = currentDocument.document.language,
+                                    settings = viewState.settings,
+                                    controller = editorController,
+                                    onContentChanged = onContentChanged,
+                                    onCursorChanged = onCursorChanged,
+                                    onShortcutPressed = onShortcutPressed,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
+                        }
+
+                        if (viewState.isError && !viewState.isLoading) {
+                            ErrorStatus(
+                                errorState = currentDocument?.errorState,
+                                onActionClicked = onErrorActionClicked,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }
+                        if (viewState.isEmpty && !viewState.isLoading) {
+                            EmptyView(
+                                iconResId = UiR.drawable.ic_file_find,
+                                title = stringResource(R.string.editor_empty_view_title),
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                        }
+                        if (viewState.isLoading) {
+                            CircularProgress(modifier = Modifier.align(Alignment.Center))
+                        }
+                    }
+
+                    if (isTablet && viewState.bottomPanelVisible) {
+                        Box(modifier = Modifier
+                            .fillMaxWidth()
+                            .height(currentBottomHeight)
+                        ) {
+                            TerminalPanel(
+                                modifier = Modifier.fillMaxSize(),
+                                headerModifier = Modifier.pointerInput(Unit) {
+                                    detectDragGestures { change, dragAmount ->
+                                        change.consume()
+                                        currentOnBottomHeightChanged(
+                                            (currentBottomHeight - dragAmount.y.toDp()).coerceIn(100.dp, 600.dp)
+                                        )
+                                    }
+                                },
+                                onCloseClicked = onToggleBottomPanel
+                            )
+                            
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(SquircleTheme.colors.colorOutline)
+                                    .align(Alignment.TopCenter)
+                                    .zIndex(100f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (isTablet) {
+                StatusBar(
+                    startContent = {
+                        StatusBarItem(text = "UTF-8")
+                        StatusBarItem(text = "LF")
+                    },
+                    endContent = {
+                        StatusBarItem(text = "Ln $line, Col $column")
+                        StatusBarItem(text = viewState.currentDocument?.document?.language ?: "plaintext")
+                    }
                 )
-                HorizontalDivider()
-            }
-
-            if (!isError && !isLoading && content != null) {
-                key(currentDocument.document.uuid) {
-                    CodeEditor(
-                        content = currentDocument.content,
-                        language = currentDocument.document.language,
-                        settings = viewState.settings,
-                        controller = editorController,
-                        onContentChanged = onContentChanged,
-                        onShortcutPressed = onShortcutPressed,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-            }
-
-            if (isError && !isLoading) {
-                Box(Modifier.fillMaxSize()) {
-                    ErrorStatus(
-                        errorState = currentDocument?.errorState,
-                        onActionClicked = onErrorActionClicked,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-            }
-            if (isEmpty && !isLoading) {
-                Box(Modifier.fillMaxSize()) {
-                    EmptyView(
-                        iconResId = UiR.drawable.ic_file_find,
-                        title = stringResource(R.string.editor_empty_view_title),
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-            }
-            if (isLoading) {
-                Box(Modifier.fillMaxSize()) {
-                    CircularProgress(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
             }
         }
     }

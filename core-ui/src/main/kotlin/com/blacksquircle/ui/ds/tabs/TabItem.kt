@@ -41,12 +41,17 @@ import com.blacksquircle.ui.ds.PreviewBackground
 import com.blacksquircle.ui.ds.SquircleTheme
 import com.blacksquircle.ui.ds.modifier.debounceSelectable
 
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
+
 @Composable
 fun TabItem(
     title: String,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    height: Dp = 36.dp,
+    textStyle: TextStyle = SquircleTheme.typography.text14Bold,
     paddingValues: PaddingValues = PaddingValues(horizontal = 12.dp),
     leadingContent: @Composable (() -> Unit)? = null,
     trailingContent: @Composable (() -> Unit)? = null,
@@ -60,7 +65,7 @@ fun TabItem(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .height(36.dp)
+                .height(height)
                 .debounceSelectable(
                     selected = selected,
                     onClick = onClick,
@@ -77,7 +82,7 @@ fun TabItem(
             Text(
                 text = title,
                 color = SquircleTheme.colors.colorTextAndIconPrimary,
-                style = SquircleTheme.typography.text14Bold,
+                style = textStyle,
                 textAlign = TextAlign.Center,
                 overflow = TextOverflow.Ellipsis,
                 maxLines = 1,

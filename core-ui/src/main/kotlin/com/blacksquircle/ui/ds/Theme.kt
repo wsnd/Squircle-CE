@@ -27,6 +27,9 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowInsetsControllerCompat
 
+import com.blacksquircle.ui.ds.layout.LocalWindowSize
+import com.blacksquircle.ui.ds.layout.rememberWindowSize
+
 @Composable
 fun SquircleTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -48,6 +51,7 @@ fun SquircleTheme(
     CompositionLocalProvider(
         LocalColors provides colors,
         LocalTypography provides SquircleTheme.typography,
+        LocalWindowSize provides rememberWindowSize(),
     ) {
         MaterialTheme(colors = colors.toMaterialColors()) {
             ProvideTextStyle(Typography.Default) {

@@ -28,6 +28,7 @@ internal data class EditorViewState(
     val settings: EditorSettings = EditorSettings(),
     val showExtraKeys: Boolean = false,
     val isLoading: Boolean = true,
+    val bottomPanelVisible: Boolean = false,
 ) : ViewState {
 
     val currentDocument: DocumentState?

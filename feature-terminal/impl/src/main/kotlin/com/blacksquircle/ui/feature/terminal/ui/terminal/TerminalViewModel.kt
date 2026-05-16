@@ -62,6 +62,8 @@ internal class TerminalViewModel @AssistedInject constructor(
 
     private var sessions = emptyList<SessionModel>()
     private var selectedSession: String? = null
+    private var internalPendingCommand: String? = null 
+    private var isInitializing = false // NEW: Lock to prevent double creation
 
     init {
         loadSessions()
@@ -71,43 +73,24 @@ internal class TerminalViewModel @AssistedInject constructor(
         navigator.goBack()
     }
     
-    /**
-     * Execute a command in the terminal session
-     */
     fun executeCommandInTerminal(command: String) {
         viewModelScope.launch {
-            Timber.d("executeCommandInTerminal: $command")
+            Timber.d("TERMINAL_EXEC: Received command -> $command")
+            
             val currentSession = sessions.find { it.id == selectedSession }
             if (currentSession != null) {
-                Timber.d("Writing command to existing session: ${currentSession.id}")
-                // Wait a bit to ensure session is ready
-                kotlinx.coroutines.delay(300)
-                // Write command followed by newline to execute it
+                Timber.d("TERMINAL_EXEC: Session exists, writing directly")
+                kotlinx.coroutines.delay(500) 
                 currentSession.session.write("$command\n")
+                internalPendingCommand = null // Clear queue on success
             } else {
-                Timber.w("No active session. Creating one for command execution...")
-                createRuntime { runtime ->
-                    val sessionId = sessionManager.createSession(runtime)
-                    sessions = sessionManager.sessions()
-                    selectedSession = sessionId
-                    
-                    _viewState.update {
-                        it.copy(
-                            sessions = sessions,
-                            selectedSession = selectedSession,
-                        )
-                    }
-                }
+                Timber.d("TERMINAL_EXEC: No session ready, queuing command...")
+                internalPendingCommand = command 
                 
-                // Wait for session initialization
-                kotlinx.coroutines.delay(800)
-                
-                val newSession = sessions.find { it.id == selectedSession }
-                if (newSession != null) {
-                    Timber.d("Writing command to new session: $selectedSession")
-                    newSession.session.write("$command\n")
-                } else {
-                    Timber.e("Failed to create session!")
+                // ONLY create if not already in the middle of initialization
+                if (!isInitializing && sessionManager.sessions().isEmpty()) {
+                    Timber.d("TERMINAL_EXEC: Triggering guarded session creation")
+                    onCreateSessionClicked()
                 }
             }
         }
@@ -121,21 +104,28 @@ internal class TerminalViewModel @AssistedInject constructor(
     }
 
     fun onCreateSessionClicked() {
+        if (isInitializing) return // Protection
+        isInitializing = true
+        
         viewModelScope.launch {
-            createRuntime { runtime ->
-                selectedSession = sessionManager.createSession(runtime)
-                sessions = sessionManager.sessions()
+            try {
+                createRuntime { runtime ->
+                    selectedSession = sessionManager.createSession(runtime)
+                    sessions = sessionManager.sessions()
 
-                _viewState.update {
-                    it.copy(
-                        sessions = sessions,
-                        selectedSession = selectedSession,
-                    )
-                }
+                    _viewState.update {
+                        it.copy(
+                            sessions = sessions,
+                            selectedSession = selectedSession,
+                        )
+                    }
 
-                viewModelScope.launch {
-                    _viewEvent.send(TerminalViewEvent.ScrollToEnd)
+                    viewModelScope.launch {
+                        _viewEvent.send(TerminalViewEvent.ScrollToEnd)
+                    }
                 }
+            } finally {
+                isInitializing = false
             }
         }
     }
@@ -229,6 +219,12 @@ internal class TerminalViewModel @AssistedInject constructor(
                     pendingCommand?.command?.let { command ->
                         executeCommandInTerminal(command)
                     }
+
+                    // Also process any commands that arrived via EventBus while initializing
+                    internalPendingCommand?.let { command ->
+                        executeCommandInTerminal(command)
+                        internalPendingCommand = null
+                    }
                 }
             } else {
                 _viewState.update {
@@ -236,6 +232,12 @@ internal class TerminalViewModel @AssistedInject constructor(
                         sessions = sessions,
                         selectedSession = selectedSession,
                     )
+                }
+                
+                // Process buffered command if sessions already exist
+                internalPendingCommand?.let { command ->
+                    executeCommandInTerminal(command)
+                    internalPendingCommand = null
                 }
             }
         }

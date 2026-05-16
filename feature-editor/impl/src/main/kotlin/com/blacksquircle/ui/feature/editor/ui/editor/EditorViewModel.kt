@@ -67,13 +67,9 @@ import com.blacksquircle.ui.navigation.api.Navigator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.File
@@ -301,7 +297,7 @@ internal class EditorViewModel @Inject constructor(
         }
     }
 
-    fun onShortcutPressed(ctrl: Boolean, shift: Boolean, alt: Boolean, keyCode: Int) {
+    fun onShortcutPressed(ctrl: Boolean, shift: Boolean, alt: Boolean, keyCode: Int, isTablet: Boolean = false) {
         when (settings.keybindings.forAction(ctrl, shift, alt, keyCode)) {
             Shortcut.NEW -> onNewFileClicked()
             Shortcut.OPEN -> onOpenFileClicked()
@@ -327,7 +323,7 @@ internal class EditorViewModel @Inject constructor(
             Shortcut.GOTO_LINE -> onGoToLineClicked()
             Shortcut.FORCE_SYNTAX -> onForceSyntaxClicked()
             Shortcut.INSERT_COLOR -> onInsertColorClicked()
-            Shortcut.RUN_PYTHON -> onRunPythonClicked()
+            Shortcut.RUN_PYTHON -> onRunPythonClicked(isTablet)
             else -> Unit
         }
     }
@@ -421,14 +417,14 @@ internal class EditorViewModel @Inject constructor(
         }
     }
 
-    fun onRunPythonClicked() {
-        onRunPythonInTerminalClicked()
+    fun onRunPythonClicked(isTablet: Boolean = false) {
+        onRunPythonInTerminalClicked(isTablet)
     }
 
     /**
      * Run Python code in Terminal (execute and show output seamlessly)
      */
-    fun onRunPythonInTerminalClicked() {
+    fun onRunPythonInTerminalClicked(isTablet: Boolean) {
         viewModelScope.launch {
             if (selectedPosition !in documents.indices) {
                 return@launch
@@ -471,7 +467,7 @@ internal class EditorViewModel @Inject constructor(
                 // 2. Get actual file path based on filesystem type
                 val actualFilePath = if (document.filesystemUuid == com.blacksquircle.ui.filesystem.saf.SAFFilesystem.SAF_UUID) {
                     // For SAF files, resolve content URI to real path
-                    val fileUri = android.net.Uri.parse(document.fileUri)
+                    val fileUri = Uri.parse(document.fileUri)
                     resolveSafFilePath(context, fileUri, document.displayName)
                         ?: run {
                             _viewEvent.send(ViewEvent.Toast("Error: Cannot access file"))
@@ -493,14 +489,23 @@ internal class EditorViewModel @Inject constructor(
                 val fileName = file.name
                 val nativeLibDir = context.applicationInfo.nativeLibraryDir
                 val pythonExe = "$nativeLibDir/libpython_exe.so"
+                val command = "cd \"$parentDir\" && \"$pythonExe\" \"$fileName\""
                 
-                // 3. Navigate to terminal with the execution command
-                navigator.navigate(
-                    com.blacksquircle.ui.feature.terminal.api.navigation.TerminalRoute(
-                        workingDir = parentDir,
-                        command = "cd \"$parentDir\" && \"$pythonExe\" \"$fileName\""
+                if (isTablet) {
+                    // 3. Integrated execution for tablets
+                    _viewState.update { it.copy(bottomPanelVisible = true) }
+                    // Wait until terminal is ready and listening to EventBus
+                    EventBus.terminalReady.first { it }
+                    EventBus.emit(AppEvent.ExecutePythonCommand(command))
+                } else {
+                    // 4. Separate screen for phones
+                    navigator.navigate(
+                        com.blacksquircle.ui.feature.terminal.api.navigation.TerminalRoute(
+                            workingDir = parentDir,
+                            command = command
+                        )
                     )
-                )
+                }
                 
                 _viewEvent.send(ViewEvent.Toast("Running: python ${document.displayName}"))
             } catch (e: Exception) {
@@ -1023,9 +1028,11 @@ internal class EditorViewModel @Inject constructor(
         }
     }
 
-    fun onTerminalClicked() {
+    fun onTerminalClicked(isTablet: Boolean = false) {
         viewModelScope.launch {
-            if (terminalInteractor.isTermux()) {
+            if (isTablet) {
+                onToggleBottomPanel()
+            } else if (terminalInteractor.isTermux()) {
                 terminalInteractor.openTermux()
             } else {
                 val screen = TerminalRoute(isPythonRepl = true)

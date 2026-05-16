@@ -96,6 +96,9 @@ internal fun EditorScreen(
     val tabsState = rememberLazyListState()
     val viewState by viewModel.viewState.collectAsStateWithLifecycle()
 
+    val windowSize = SquircleLayout.windowSize
+    val isTablet = windowSize != WindowSize.Compact || LocalContext.current.resources.configuration.smallestScreenWidthDp >= 600
+
     var line by remember { mutableIntStateOf(1) }
     var column by remember { mutableIntStateOf(1) }
     
@@ -127,10 +130,12 @@ internal fun EditorScreen(
         onSaveFileClicked = viewModel::onSaveFileClicked,
         onSaveFileAsClicked = viewModel::onSaveFileAsClicked,
         onReloadFileClicked = viewModel::onReloadFileClicked,
-        onRunPythonClicked = viewModel::onRunPythonClicked,
+        onRunPythonClicked = { viewModel.onRunPythonClicked(isTablet) },
         onReadOnlyClicked = viewModel::onReadOnlyClicked,
         onContentChanged = viewModel::onContentChanged,
-        onShortcutPressed = viewModel::onShortcutPressed,
+        onShortcutPressed = { ctrl, shift, alt, keyCode -> 
+            viewModel.onShortcutPressed(ctrl, shift, alt, keyCode, isTablet) 
+        },
         onCutClicked = viewModel::onCutClicked,
         onCopyClicked = viewModel::onCopyClicked,
         onPasteClicked = viewModel::onPasteClicked,
@@ -158,7 +163,7 @@ internal fun EditorScreen(
         onCommitClicked = viewModel::onCommitClicked,
         onPushClicked = viewModel::onPushClicked,
         onCheckoutClicked = viewModel::onCheckoutClicked,
-        onTerminalClicked = viewModel::onTerminalClicked,
+        onTerminalClicked = { viewModel.onTerminalClicked(isTablet) },
         onSettingsClicked = viewModel::onSettingsClicked,
         onDocumentClicked = viewModel::onDocumentClicked,
         onDocumentMoved = viewModel::onDocumentMoved,
@@ -348,7 +353,7 @@ private fun EditorScreen(
                         onCommitClicked = onCommitClicked,
                         onPushClicked = onPushClicked,
                         onCheckoutClicked = onCheckoutClicked,
-                        onTerminalClicked = if (isTablet) onToggleBottomPanel else onTerminalClicked,
+                        onTerminalClicked = onTerminalClicked,
                         onSettingsClicked = onSettingsClicked,
                     )
                 },

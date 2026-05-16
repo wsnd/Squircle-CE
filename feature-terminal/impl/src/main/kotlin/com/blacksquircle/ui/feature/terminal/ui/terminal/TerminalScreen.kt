@@ -66,6 +66,7 @@ import com.blacksquircle.ui.feature.terminal.ui.terminal.extrakeys.ExtraKeysView
 import com.blacksquircle.ui.feature.terminal.ui.terminal.model.TerminalCommand
 import com.blacksquircle.ui.feature.terminal.ui.terminal.view.TerminalViewClientImpl
 import com.termux.view.TerminalView
+import kotlinx.coroutines.flow.onStart
 import timber.log.Timber
 import com.blacksquircle.ui.ds.R as UiR
 
@@ -99,7 +100,8 @@ fun TerminalPanel(
         onCloseClicked = onCloseClicked,
         isPanel = true,
         headerModifier = headerModifier,
-        modifier = modifier
+        modifier = modifier,
+        viewModel = viewModel
     )
 }
 
@@ -121,6 +123,7 @@ internal fun TerminalScreen(
         onCreateSessionClicked = viewModel::onCreateSessionClicked,
         onCloseSessionClicked = viewModel::onCloseSessionClicked,
         onBackClicked = viewModel::onBackClicked,
+        viewModel = viewModel
     )
 
     val activity = LocalActivity.current
@@ -132,39 +135,13 @@ internal fun TerminalScreen(
             activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
-
-    val context = LocalContext.current
-    LaunchedEffect(Unit) {
-        viewModel.viewEvent.collect { event ->
-            when (event) {
-                is ViewEvent.Toast -> {
-                    context.showToast(text = event.message)
-                }
-                is TerminalViewEvent.ScrollToEnd -> {
-                    tabsState.animateScrollToItem(viewState.sessions.size)
-                }
-            }
-        }
-    }
-    
-    // Listen to EventBus for Python command execution
-    LaunchedEffect(Unit) {
-        EventBus.events.collect { event ->
-            Timber.d("TerminalScreen received EventBus event: $event")
-            when (event) {
-                is AppEvent.ExecutePythonCommand -> {
-                    // Send command to terminal session
-                    viewModel.executeCommandInTerminal(event.command)
-                }
-            }
-        }
-    }
 }
 
 @Composable
 private fun TerminalScreen(
     viewState: TerminalViewState,
     tabsState: LazyListState,
+    viewModel: TerminalViewModel,
     onSessionClicked: (SessionModel) -> Unit = {},
     onCreateSessionClicked: () -> Unit = {},
     onCloseSessionClicked: (SessionModel) -> Unit = {},
@@ -175,7 +152,7 @@ private fun TerminalScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val textSize = with(LocalDensity.current) { 10.sp.toPx() } // Even smaller font size
+    val textSize = with(LocalDensity.current) { 10.sp.toPx() }
     val backgroundColor = SquircleTheme.colors.colorBackgroundPrimary.toArgb()
     val foregroundColor = SquircleTheme.colors.colorTextAndIconPrimary.toArgb()
     val activeBackgroundColor = SquircleTheme.colors.colorBackgroundTertiary.toArgb()
@@ -200,7 +177,6 @@ private fun TerminalScreen(
             isFocusable = true
             isFocusableInTouchMode = true
             requestFocus()
-
             setTextSize(textSize.toInt())
             setTypeface(Typeface.MONOSPACE)
 
@@ -212,6 +188,30 @@ private fun TerminalScreen(
                 cursorBlinking = viewState.cursorBlinking,
             )
             setTerminalViewClient(viewClient)
+        }
+    }
+
+    // SHARED LISTENER: Works for both Panel and Screen
+    LaunchedEffect(Unit) {
+        try {
+            EventBus.events
+                .onStart { EventBus.setTerminalReady(true) }
+                .collect { event ->
+                    Timber.d("TERMINAL_BUS: Received event: $event")
+                    if (event is AppEvent.ExecutePythonCommand) {
+                        viewModel.executeCommandInTerminal(event.command)
+                    }
+                }
+        } finally {
+            EventBus.setTerminalReady(false)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.viewEvent.collect { event ->
+            if (event is TerminalViewEvent.ScrollToEnd) {
+                tabsState.animateScrollToItem(viewState.sessions.size)
+            }
         }
     }
 
@@ -232,15 +232,13 @@ private fun TerminalScreen(
                     TabLayout(
                         state = tabsState,
                         divider = false,
-                        modifier = Modifier
-                            .height(28.dp)
-                            .then(headerModifier), // Entire header is now draggable
+                        modifier = Modifier.height(28.dp).then(headerModifier),
                         leadingContent = {
                             if (isPanel) {
                                 Text(
                                     text = stringResource(R.string.terminal_toolbar_title).uppercase(),
                                     style = SquircleTheme.typography.text12Regular,
-                                    fontSize = 10.sp, // Smallest font size
+                                    fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = SquircleTheme.colors.colorTextAndIconSecondary,
                                     modifier = Modifier.padding(start = 16.dp, end = 8.dp)
@@ -266,21 +264,13 @@ private fun TerminalScreen(
                             }
                         }
                     ) {
-                        items(
-                            items = viewState.sessions,
-                            key = SessionModel::id,
-                        ) { sessionModel ->
+                        items(items = viewState.sessions, key = SessionModel::id) { sessionModel ->
                             TabItem(
-                                title = if (sessionModel.ordinal > 0) {
-                                    sessionModel.name + " (${sessionModel.ordinal})"
-                                } else {
-                                    sessionModel.name
-                                },
+                                title = if (sessionModel.ordinal > 0) sessionModel.name + " (${sessionModel.ordinal})" else sessionModel.name,
                                 selected = sessionModel.id == currentSession.id,
-                                height = 28.dp, // Smaller tab height
+                                height = 28.dp,
                                 textStyle = SquircleTheme.typography.text12Regular.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp, // Match header font
+                                    fontWeight = FontWeight.Bold, fontSize = 10.sp,
                                 ),
                                 paddingValues = PaddingValues(start = 12.dp),
                                 onClick = { onSessionClicked(sessionModel) },
@@ -306,28 +296,16 @@ private fun TerminalScreen(
 
                     LaunchedEffect(currentSession.id) {
                         terminalView.attachSession(currentSession.session)
-
                         currentSession.commands.collect { command ->
                             when (command) {
-                                is TerminalCommand.Update -> {
-                                    terminalView.onScreenUpdated()
-                                }
-                                is TerminalCommand.Copy -> {
-                                    context.copyText(command.text)
-                                }
-                                is TerminalCommand.Paste -> {
-                                    val text = context.primaryClipText()
-                                    terminalView.mEmulator?.paste(text)
-                                }
+                                is TerminalCommand.Update -> terminalView.onScreenUpdated()
+                                is TerminalCommand.Copy -> context.copyText(command.text)
+                                is TerminalCommand.Paste -> terminalView.mEmulator?.paste(context.primaryClipText())
                             }
                         }
                     }
                 } else {
-                    // Empty state or loading
-                    Box(modifier = Modifier
-                        .fillMaxSize()
-                        .background(SquircleTheme.colors.colorBackgroundPrimary)
-                    )
+                    Box(modifier = Modifier.fillMaxSize().background(SquircleTheme.colors.colorBackgroundPrimary))
                 }
             }
         }
@@ -348,10 +326,7 @@ private fun TerminalScreen(
                 if (!viewState.isInstalling) {
                     AndroidView(
                         factory = { extraKeysView },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(EXTRA_KEYS_HEIGHT)
-                            .navigationBarsPadding()
+                        modifier = Modifier.fillMaxWidth().height(EXTRA_KEYS_HEIGHT).navigationBarsPadding()
                     )
                 }
             },
@@ -367,11 +342,12 @@ private fun TerminalScreen(
 private fun TerminalScreenPreview() {
     PreviewBackground {
         TerminalScreen(
-            viewState = TerminalViewState(
-                sessions = emptyList(),
-                selectedSession = null,
-            ),
-            tabsState = rememberLazyListState()
+            viewState = TerminalViewState(sessions = emptyList(), selectedSession = null),
+            tabsState = rememberLazyListState(),
+            viewModel = daggerViewModel { context ->
+                val component = TerminalComponent.buildOrGet(context)
+                TerminalViewModel.ParameterizedFactory(null).also(component::inject)
+            }
         )
     }
 }

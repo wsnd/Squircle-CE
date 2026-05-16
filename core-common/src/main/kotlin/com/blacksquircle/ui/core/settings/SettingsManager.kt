@@ -213,7 +213,7 @@ class SettingsManager(private val context: Context) {
         set(value) = sharedPreferences.edit().putString(KEY_WORKSPACE, value).apply()
 
     var terminalRuntime: String
-        get() = sharedPreferences.getString(KEY_TERMINAL_RUNTIME, "android") ?: "android"
+        get() = "python"
         set(value) = sharedPreferences.edit().putString(KEY_TERMINAL_RUNTIME, value).apply()
     var cursorBlinking: Boolean
         get() = sharedPreferences.getBoolean(KEY_TERMINAL_CURSOR_BLINKING, true)

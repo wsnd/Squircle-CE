@@ -22,15 +22,6 @@ import com.blacksquircle.ui.feature.terminal.api.model.RuntimeType
 
 @Immutable
 internal data class TerminalHeaderViewState(
-    val currentRuntime: RuntimeType = RuntimeType.ANDROID,
-    val termuxInstalled: Boolean = true,
-    val termuxCompatible: Boolean = true,
-    val termuxPermission: Boolean = true,
-    val termuxPropsCopied: Boolean = false,
     val cursorBlinking: Boolean = true,
     val keepScreenOn: Boolean = false,
-) : ViewState {
-
-    val isTermux: Boolean
-        get() = currentRuntime == RuntimeType.TERMUX
-}
+) : ViewState

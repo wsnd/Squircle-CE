@@ -198,47 +198,54 @@ internal class TerminalViewModel @AssistedInject constructor(
     }
 
     private fun loadSessions() {
+        if (isInitializing) return
+        isInitializing = true
+        
         viewModelScope.launch {
-            sessions = sessionManager.sessions()
-            selectedSession = sessions.lastOrNull()?.id
+            try {
+                sessions = sessionManager.sessions()
+                selectedSession = sessions.lastOrNull()?.id
 
-            if (sessions.isEmpty() || pendingCommand != null) {
-                createRuntime { runtime ->
-                    val sessionId = sessionManager.createSession(runtime, pendingCommand)
+                if (sessions.isEmpty() || pendingCommand != null) {
+                    createRuntime { runtime ->
+                        val sessionId = sessionManager.createSession(runtime, pendingCommand)
 
-                    sessions = sessionManager.sessions()
-                    selectedSession = sessionId
+                        sessions = sessionManager.sessions()
+                        selectedSession = sessionId
 
+                        _viewState.update {
+                            it.copy(
+                                sessions = sessions,
+                                selectedSession = selectedSession,
+                            )
+                        }
+
+                        pendingCommand?.command?.let { command ->
+                            executeCommandInTerminal(command)
+                        }
+
+                        // Also process any commands that arrived via EventBus while initializing
+                        internalPendingCommand?.let { command ->
+                            executeCommandInTerminal(command)
+                            internalPendingCommand = null
+                        }
+                    }
+                } else {
                     _viewState.update {
                         it.copy(
                             sessions = sessions,
                             selectedSession = selectedSession,
                         )
                     }
-
-                    pendingCommand?.command?.let { command ->
-                        executeCommandInTerminal(command)
-                    }
-
-                    // Also process any commands that arrived via EventBus while initializing
+                    
+                    // Process buffered command if sessions already exist
                     internalPendingCommand?.let { command ->
                         executeCommandInTerminal(command)
                         internalPendingCommand = null
                     }
                 }
-            } else {
-                _viewState.update {
-                    it.copy(
-                        sessions = sessions,
-                        selectedSession = selectedSession,
-                    )
-                }
-                
-                // Process buffered command if sessions already exist
-                internalPendingCommand?.let { command ->
-                    executeCommandInTerminal(command)
-                    internalPendingCommand = null
-                }
+            } finally {
+                isInitializing = false
             }
         }
     }

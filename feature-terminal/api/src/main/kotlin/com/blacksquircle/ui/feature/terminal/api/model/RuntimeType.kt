@@ -24,7 +24,7 @@ enum class RuntimeType(val title: String, val value: String) {
     companion object {
 
         fun of(value: String): RuntimeType {
-            return entries.find { it.value == value } ?: ANDROID
+            return entries.find { it.value == value } ?: PYTHON
         }
     }
 }

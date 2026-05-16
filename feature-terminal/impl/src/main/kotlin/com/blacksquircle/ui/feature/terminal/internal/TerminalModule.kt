@@ -20,7 +20,6 @@ import com.blacksquircle.ui.core.provider.coroutine.DispatcherProvider
 import com.blacksquircle.ui.core.settings.SettingsManager
 import com.blacksquircle.ui.feature.terminal.data.manager.RuntimeManagerImpl
 import com.blacksquircle.ui.feature.terminal.data.manager.SessionManagerImpl
-import com.blacksquircle.ui.feature.terminal.data.runtime.AndroidRuntime
 import com.blacksquircle.ui.feature.terminal.data.runtime.PythonRuntime
 import com.blacksquircle.ui.feature.terminal.domain.manager.RuntimeManager
 import com.blacksquircle.ui.feature.terminal.domain.manager.SessionManager
@@ -53,12 +52,6 @@ internal object TerminalModule {
         )
     }
 
-    @IntoSet
-    @Provides
-    fun provideAndroidRuntime(): TerminalRuntime {
-        return AndroidRuntime
-    }
-    
     @IntoSet
     @Provides
     fun providePythonRuntime(context: android.content.Context): TerminalRuntime {

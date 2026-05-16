@@ -18,7 +18,6 @@ package com.blacksquircle.ui.feature.settings.ui.terminal
 
 import androidx.compose.runtime.Immutable
 import com.blacksquircle.ui.core.mvi.ViewState
-import com.blacksquircle.ui.feature.terminal.api.model.RuntimeType
 
 @Immutable
 internal data class TerminalHeaderViewState(

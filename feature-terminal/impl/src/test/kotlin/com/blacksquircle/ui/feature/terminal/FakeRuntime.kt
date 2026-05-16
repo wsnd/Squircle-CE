@@ -21,7 +21,7 @@ import com.blacksquircle.ui.feature.terminal.domain.runtime.TerminalRuntime
 
 object FakeRuntime : TerminalRuntime {
     override val name = "Fake Runtime"
-    override val type = RuntimeType.ANDROID
+    override val type = RuntimeType.PYTHON
     override val shellPath = "/"
     override val homeDir = "/"
     override val tmpDir = "/"

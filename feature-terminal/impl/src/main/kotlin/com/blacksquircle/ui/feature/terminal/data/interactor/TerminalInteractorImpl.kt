@@ -20,9 +20,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.blacksquircle.ui.core.extensions.isPermissionGranted
-import com.blacksquircle.ui.core.settings.SettingsManager
 import com.blacksquircle.ui.feature.terminal.api.interactor.TerminalInteractor
-import com.blacksquircle.ui.feature.terminal.api.model.RuntimeType
 import com.blacksquircle.ui.feature.terminal.api.model.ShellArgs
 import com.termux.shared.termux.TermuxConstants.*
 import com.termux.shared.termux.TermuxConstants.TERMUX_APP.*
@@ -30,13 +28,11 @@ import com.termux.shared.termux.TermuxConstants.TERMUX_APP.RUN_COMMAND_SERVICE.*
 import timber.log.Timber
 
 internal class TerminalInteractorImpl(
-    private val settingsManager: SettingsManager,
     private val context: Context,
 ) : TerminalInteractor {
 
     override fun isTermux(): Boolean {
-        val runtime = RuntimeType.of(settingsManager.terminalRuntime)
-        return runtime == RuntimeType.TERMUX
+        return false
     }
 
     override fun isTermuxInstalled(): Boolean {

@@ -98,7 +98,10 @@ internal fun EditorToolbar(
             if (currentDocument?.document?.extension == ".py") {
                 IconButton(
                     iconResId = UiR.drawable.ic_play,
-                    onClick = onRunPythonClicked,
+                    onClick = {
+                        focusManager.clearFocus(force = true)
+                        onRunPythonClicked()
+                    },
                     contentDescription = "Run Python code"
                 )
             }

@@ -17,7 +17,6 @@
 package com.blacksquircle.ui.feature.terminal.data.manager
 
 import android.content.Context
-import com.blacksquircle.ui.feature.python.PythonReplNative
 import com.blacksquircle.ui.feature.python.PythonStdlibExtractor
 import com.blacksquircle.ui.feature.terminal.api.model.RuntimeType
 import com.blacksquircle.ui.feature.terminal.api.model.ShellArgs
@@ -36,12 +35,8 @@ import com.termux.shared.shell.command.environment.UnixShellEnvironment.ENV_TERM
 import com.termux.shared.shell.command.environment.UnixShellEnvironment.ENV_TMPDIR
 import com.termux.terminal.TerminalEmulator
 import com.termux.terminal.TerminalSession
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.File
 import java.util.UUID
@@ -54,8 +49,6 @@ internal class SessionManagerImpl(
 
     private val sessions = ConcurrentHashMap<String, SessionModel>()
     private val counter = AtomicInteger(0)
-    private val pythonRepls = ConcurrentHashMap<String, PythonReplNative>()
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun sessions(): List<SessionModel> {
         return sessions.values.sortedBy(SessionModel::ordinal)
@@ -72,32 +65,32 @@ internal class SessionManagerImpl(
             onPaste = { commands.tryEmit(TerminalCommand.Paste) }
         )
         
-        // Ensure bin directory and python symlinks exist for all session types
         setupBinDirectory()
 
-        // Check if this is a Python runtime
         if (runtime.type == RuntimeType.PYTHON || args?.isPythonRepl == true) {
-            return createPythonReplSession(sessionId, runtime, client, commands)
+            return createPythonReplSession(sessionId, runtime, client, commands, args)
         }
         
-        // Standard shell session
         val environment = HashMap<String, String>()
         setupCommonEnvironment(environment, runtime)
         
-        val (shellPath, shellArgs) = Pair("/system/bin/sh", arrayOf("-i"))
+        val shellPath = "/system/bin/sh"
+        val shellArgs = arrayOf("-i")
 
+        val terminalSession = TerminalSession(
+            shellPath,
+            args?.workingDir ?: runtime.homeDir,
+            shellArgs,
+            convertEnvironmentToEnviron(environment).toTypedArray(),
+            TerminalEmulator.DEFAULT_TERMINAL_TRANSCRIPT_ROWS,
+            client
+        )
+        
         sessions[sessionId] = SessionModel(
             id = sessionId,
             name = runtime.name,
             ordinal = counter.getAndIncrement(),
-            session = TerminalSession(
-                shellPath,
-                args?.workingDir ?: runtime.homeDir,
-                shellArgs,
-                convertEnvironmentToEnviron(environment).toTypedArray(),
-                TerminalEmulator.DEFAULT_TERMINAL_TRANSCRIPT_ROWS,
-                client
-            ),
+            session = terminalSession,
             commands = commands.asSharedFlow(),
         )
         
@@ -111,7 +104,7 @@ internal class SessionManagerImpl(
         val nativeLibDir = context.applicationInfo.nativeLibraryDir
         val candidates = listOf(
             File(nativeLibDir, "libpython_exe.so"),
-            File(nativeLibDir, "python3"), // Some systems might extract it differently
+            File(nativeLibDir, "python3"),
             File(nativeLibDir, "python")
         )
         
@@ -119,7 +112,6 @@ internal class SessionManagerImpl(
 
         try {
             if (pythonExe != null) {
-                // Ensure executable permission
                 if (!pythonExe.canExecute()) {
                     pythonExe.setExecutable(true)
                 }
@@ -127,30 +119,15 @@ internal class SessionManagerImpl(
                 val links = listOf("python", "python3", "python3.14")
                 links.forEach { name ->
                     val link = File(binDir, name)
-                    if (link.exists()) link.delete()
-                    android.system.Os.symlink(pythonExe.absolutePath, link.absolutePath)
-                }
-                Timber.d("Setup bin directory: python linked to ${pythonExe.absolutePath}")
-            } else {
-                Timber.e("Python executable not found in native library directory: $nativeLibDir")
-                // Check if we can find it in the architecture-specific subfolder (sometimes happens)
-                val abi = android.os.Build.SUPPORTED_ABIS[0]
-                val abiDir = File(nativeLibDir, abi)
-                if (abiDir.exists()) {
-                    val abiPython = File(abiDir, "libpython_exe.so")
-                    if (abiPython.exists()) {
-                        abiPython.setExecutable(true)
-                        listOf("python", "python3", "python3.14").forEach { name ->
-                            val link = File(binDir, name)
-                            if (link.exists()) link.delete()
-                            android.system.Os.symlink(abiPython.absolutePath, link.absolutePath)
-                        }
-                        Timber.d("Setup bin directory: python linked to ${abiPython.absolutePath} (ABI subfolder)")
+                    // Use standard Java delete to handle broken symlinks
+                    link.delete()
+                    try {
+                        android.system.Os.symlink(pythonExe.absolutePath, link.absolutePath)
+                    } catch (e: Exception) {
+                        Timber.e(e, "Failed to create symlink: $name")
                     }
                 }
             }
-            
-            // Create shims for common build tools to provide better error messages
             setupBuildShims(binDir)
         } catch (e: Exception) {
             Timber.e(e, "Failed to setup bin directory")
@@ -163,20 +140,18 @@ internal class SessionManagerImpl(
             #!/system/bin/sh
             echo "Error: Build tool '${'$'}(basename ${'$'}0)' is not available in the mobile environment."
             echo "Native compilation is not supported on-device in Squircle-CE."
-            echo "Please use pre-compiled wheels: pip install <package> --only-binary=:all:"
             exit 1
         """.trimIndent()
 
         shims.forEach { shim ->
             val shimFile = File(binDir, shim)
-            try {
-                if (shimFile.exists()) {
-                    shimFile.delete()
+            if (!shimFile.exists()) {
+                try {
+                    shimFile.writeText(shimContent)
+                    shimFile.setExecutable(true)
+                } catch (e: Exception) {
+                    Timber.e(e, "Failed to create shim")
                 }
-                shimFile.writeText(shimContent)
-                shimFile.setExecutable(true)
-            } catch (e: Exception) {
-                Timber.e(e, "Failed to create shim: ${'$'}shim")
             }
         }
     }
@@ -189,9 +164,15 @@ internal class SessionManagerImpl(
         env[ENV_TERM] = DEFAULT_TERM
 
         val binDir = File(context.filesDir, "bin").absolutePath
+        val systemPath = "/system/bin:/system/xbin"
         val currentPath = System.getenv(ENV_PATH).orEmpty()
-        // Always put binDir at the front to prioritize our shims/symlinks
-        env[ENV_PATH] = if (currentPath.isEmpty()) binDir else "$binDir:$currentPath"
+        
+        // Ensure binDir is first, but also include essential system paths
+        env[ENV_PATH] = if (currentPath.isEmpty()) {
+            "$binDir:$systemPath"
+        } else {
+            "$binDir:$systemPath:$currentPath"
+        }
 
         putToEnvIfInSystemEnv(env, "ANDROID_ASSETS")
         putToEnvIfInSystemEnv(env, "ANDROID_DATA")
@@ -205,12 +186,7 @@ internal class SessionManagerImpl(
         if (terminalSession.pid > 0) {
             terminalSession.finishIfRunning()
         }
-        
-        // Clean up Python REPL if exists
-        pythonRepls.remove(sessionId)?.stopRepl()
-        
         sessions.remove(sessionId)
-
         if (sessions.isEmpty()) {
             counter.set(0)
         }
@@ -220,67 +196,45 @@ internal class SessionManagerImpl(
         sessionId: String,
         runtime: TerminalRuntime,
         client: TerminalSessionClientImpl,
-        commands: MutableSharedFlow<TerminalCommand>
+        commands: MutableSharedFlow<TerminalCommand>,
+        args: ShellArgs?
     ): String {
         Timber.d("Creating Python REPL session")
         
         val pythonPath = PythonStdlibExtractor.extractIfNeeded(context)
         val nativeLibDir = context.applicationInfo.nativeLibraryDir
-        
         val binDir = File(context.filesDir, "bin")
         val initScript = File(binDir, "init.sh")
         
         try {
-            // Setup the 'init.sh' script with pip check and prompt
-            val sitePackages = "$pythonPath/lib/python3.14/site-packages"
             val dollarSign = "\$"
             val initContent = """
                 # Silent initialization
                 export sitePackages="$pythonPath/lib/python3.14/site-packages"
                 
-                # Check if python works, set alias if PATH lookup fails (extra safety)
-                if ! command -v python > /dev/null 2>&1; then
-                    if [ -f "$binDir/python" ]; then
-                         alias python="$binDir/python"
-                    elif [ -f "$nativeLibDir/libpython_exe.so" ]; then
-                         alias python="$nativeLibDir/libpython_exe.so"
-                    fi
+                # Setup python alias if binary is not in path or as a priority
+                if [ -f "$binDir/python" ]; then
+                    alias python="$binDir/python"
+                    alias python3="$binDir/python"
                 fi
-
-                if [ ! -d "$dollarSign{sitePackages}/pip" ]; then
-                    echo "Initializing pip (one-time setup)..."
-                    python -m ensurepip --default-pip > /dev/null 2>&1
-                    if [ $dollarSign? -ne 0 ]; then
-                        echo "❌ Failed to initialize pip."
-                    fi
-                fi
-                echo "Python 3.14 environment initialized."
                 
-                # Define pip as a shell function to avoid noexec issues
+                if [ ! -d "$dollarSign{sitePackages}/pip" ]; then
+                    python -m ensurepip --default-pip > /dev/null 2>&1
+                fi
+                
                 pip() {
-                    python -m pip "$dollarSign@" \
-                        --index-url https://anshdadwal.is-a.dev/p4a-wheels/p4a/ \
-                        --extra-index-url https://pypi.org/simple \
-                        --only-binary=:all:
-                    local exit_code=$dollarSign?
-                    
-                    # Fix platform tag mismatch (.linux-gnu.so -> .linux-android.so)
-                    if [ $dollarSign{exit_code} -eq 0 ]; then
-                        echo "Checking for platform tag mismatches in $dollarSign{sitePackages}..."
-                        find "$dollarSign{sitePackages}" -name "*.linux-gnu.so" | while read -r file; do
-                            new_file=$dollarSign(echo "$dollarSign{file}" | sed 's/\.linux-gnu\.so$/\.linux-android\.so/')
-                            mv "$dollarSign{file}" "$dollarSign{new_file}"
-                        done
-                    else
-                        echo ""
-                        echo "Error: pip command failed (exit code: $dollarSign{exit_code})"
-                        echo "Note: Native compilation is NOT supported. Only pre-compiled wheels can be installed."
-                    fi
-                    return $dollarSign{exit_code}
+                    python -m pip "$dollarSign@" --index-url https://anshdadwal.is-a.dev/p4a-wheels/p4a/ --extra-index-url https://pypi.org/simple --only-binary=:all:
                 }
                 
-                # Show current folder name in prompt
                 export PS1='${dollarSign}{PWD##*/} ${dollarSign}'
+                
+                # EXECUTE INJECTED COMMAND
+                if [ -n "$dollarSign{STARTUP_COMMAND}" ]; then
+                    _cmd="$dollarSign{STARTUP_COMMAND}"
+                    unset STARTUP_COMMAND
+                    echo "$dollarSign{PWD##*/} $dollarSign $dollarSign{_cmd}"
+                    eval "$dollarSign{_cmd}"
+                fi
             """.trimIndent()
             initScript.writeText(initContent)
         } catch (e: Exception) {
@@ -290,102 +244,42 @@ internal class SessionManagerImpl(
         val environment = HashMap<String, String>()
         setupCommonEnvironment(environment, runtime)
         
-        // Setup Python specific environment
         val sitePackages = "$pythonPath/lib/python3.14/site-packages"
         environment["PYTHONHOME"] = pythonPath ?: ""
         environment["PYTHONPATH"] = "$pythonPath/lib/python3.14:$pythonPath/lib/python3.14/lib-dynload:$sitePackages"
-        environment["LD_LIBRARY_PATH"] = "$nativeLibDir:$pythonPath/lib/python3.14/lib-dynload:$sitePackages/numpy/_core"
+        
+        // CRITICAL: Include system library paths to ensure libc and other system libs are found
+        environment["LD_LIBRARY_PATH"] = "$nativeLibDir:$pythonPath/lib/python3.14/lib-dynload:/system/lib64:/system/lib"
+
         environment["PYTHONUNBUFFERED"] = "1"
         environment["ENV"] = initScript.absolutePath
         
-        // Extra vars for pip
-        val pipCache = File(context.cacheDir, "pip")
-        if (!pipCache.exists()) pipCache.mkdirs()
-        environment["PIP_CACHE_DIR"] = pipCache.absolutePath
-        
-        val shellPath = "/system/bin/sh"
-        val shellArgs = arrayOf("-i")
-
-        val terminalSession = TerminalSession(
-            shellPath,
-            runtime.homeDir,
-            shellArgs,
-            convertEnvironmentToEnviron(environment).toTypedArray(),
-            TerminalEmulator.DEFAULT_TERMINAL_TRANSCRIPT_ROWS,
-            client
-        )
-        
-        sessions[sessionId] = SessionModel(
-            id = sessionId,
-            name = runtime.name,
-            ordinal = counter.getAndIncrement(),
-            session = terminalSession,
-            commands = commands.asSharedFlow(),
-        )
-        
-        return sessionId
-    }
-    
-    /**
-     * Fallback session when Python REPL fails to start
-     */
-    private fun createFallbackPythonSession(
-        sessionId: String,
-        runtime: TerminalRuntime,
-        client: TerminalSessionClientImpl,
-        commands: MutableSharedFlow<TerminalCommand>,
-        showPythonError: Boolean = false
-    ): String {
-        val environment = HashMap<String, String>()
-        environment[ENV_HOME] = runtime.homeDir
-        environment[ENV_LANG] = DEFAULT_LANG
-        environment[ENV_PATH] = System.getenv(ENV_PATH).orEmpty()
-        environment[ENV_TMPDIR] = runtime.tmpDir
-        environment[ENV_COLORTERM] = DEFAULT_COLOR
-        environment[ENV_TERM] = DEFAULT_TERM
-        
-        val shellPath = "/system/bin/sh"
-        val shellArgs = arrayOf("-i")
-        
-        val terminalSession = TerminalSession(
-            shellPath,
-            runtime.homeDir,
-            shellArgs,
-            convertEnvironmentToEnviron(environment).toTypedArray(),
-            TerminalEmulator.DEFAULT_TERMINAL_TRANSCRIPT_ROWS,
-            client
-        )
-        
-        sessions[sessionId] = SessionModel(
-            id = sessionId,
-            name = runtime.name,
-            ordinal = counter.getAndIncrement(),
-            session = terminalSession,
-            commands = commands.asSharedFlow(),
-        )
-        
-        scope.launch {
-            if (showPythonError) {
-                showMissingPythonBinaryError(terminalSession)
-            } else {
-                terminalSession.write("\n⚠️ Python stdlib not available\n")
-                terminalSession.write("Please ensure Python assets are properly configured\n\n")
-            }
+        val command = args?.command
+        if (command != null) {
+            environment["STARTUP_COMMAND"] = command
         }
         
-        return sessionId
-    }
+        val shellPath = "/system/bin/sh"
+        val shellArgs = arrayOf("-i")
 
-    private fun showMissingPythonBinaryError(terminalSession: TerminalSession) {
-        terminalSession.write("\n" + "=".repeat(60) + "\n")
-        terminalSession.write("⚠️  Python Interpreter Not Available\n")
-        terminalSession.write("=".repeat(60) + "\n\n")
-        terminalSession.write("The Python standard library is extracted, but the Python\n")
-        terminalSession.write("interpreter binary (python3) is not bundled with this app.\n\n")
-        terminalSession.write("To use Python in Terminal:\n")
-        terminalSession.write("  1. Install Termux and run: pkg install python\n")
-        terminalSession.write("  2. Or build CPython for Android and package it\n\n")
-        terminalSession.write("Falling back to standard shell...\n\n")
+        val terminalSession = TerminalSession(
+            shellPath,
+            args?.workingDir ?: runtime.homeDir,
+            shellArgs,
+            convertEnvironmentToEnviron(environment).toTypedArray(),
+            TerminalEmulator.DEFAULT_TERMINAL_TRANSCRIPT_ROWS,
+            client
+        )
+        
+        sessions[sessionId] = SessionModel(
+            id = sessionId,
+            name = runtime.name,
+            ordinal = counter.getAndIncrement(),
+            session = terminalSession,
+            commands = commands.asSharedFlow(),
+        )
+        
+        return sessionId
     }
 
     companion object {

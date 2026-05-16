@@ -17,14 +17,12 @@
 package com.blacksquircle.ui.feature.terminal.api.model
 
 enum class RuntimeType(val title: String, val value: String) {
-    ANDROID("Android", "android"),
-    TERMUX("Termux", "termux"),
     PYTHON("Python 3.14", "python");
 
     companion object {
 
         fun of(value: String): RuntimeType {
-            return entries.find { it.value == value } ?: PYTHON
+            return PYTHON
         }
     }
 }

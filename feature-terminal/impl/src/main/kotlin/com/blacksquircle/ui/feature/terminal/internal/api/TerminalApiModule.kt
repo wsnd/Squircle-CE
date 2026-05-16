@@ -17,7 +17,6 @@
 package com.blacksquircle.ui.feature.terminal.internal.api
 
 import android.content.Context
-import com.blacksquircle.ui.core.settings.SettingsManager
 import com.blacksquircle.ui.feature.terminal.api.interactor.TerminalInteractor
 import com.blacksquircle.ui.feature.terminal.data.interactor.TerminalInteractorImpl
 import com.blacksquircle.ui.feature.terminal.ui.TerminalEntryProvider
@@ -33,11 +32,9 @@ object TerminalApiModule {
     @Provides
     @Singleton
     fun provideTerminalInteractor(
-        settingsManager: SettingsManager,
         context: Context,
     ): TerminalInteractor {
         return TerminalInteractorImpl(
-            settingsManager = settingsManager,
             context = context
         )
     }

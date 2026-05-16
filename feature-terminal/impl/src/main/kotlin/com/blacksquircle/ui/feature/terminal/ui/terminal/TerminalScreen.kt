@@ -200,6 +200,9 @@ private fun TerminalScreen(
                     Timber.d("TERMINAL_BUS: Received event: $event")
                     if (event is AppEvent.ExecutePythonCommand) {
                         viewModel.executeCommandInTerminal(event.command)
+                        terminalView.post {
+                            terminalView.requestFocus()
+                        }
                     }
                 }
         } finally {
@@ -209,8 +212,17 @@ private fun TerminalScreen(
 
     LaunchedEffect(Unit) {
         viewModel.viewEvent.collect { event ->
-            if (event is TerminalViewEvent.ScrollToEnd) {
-                tabsState.animateScrollToItem(viewState.sessions.size)
+            when (event) {
+                is TerminalViewEvent.ScrollToEnd -> {
+                    tabsState.animateScrollToItem(viewState.sessions.size)
+                }
+                is TerminalViewEvent.NotifyEmpty -> {
+                    if (isPanel) {
+                        onCloseClicked()
+                    } else {
+                        viewModel.onBackClicked()
+                    }
+                }
             }
         }
     }
@@ -296,6 +308,9 @@ private fun TerminalScreen(
 
                     LaunchedEffect(currentSession.id) {
                         terminalView.attachSession(currentSession.session)
+                        terminalView.post {
+                            terminalView.requestFocus()
+                        }
                         currentSession.commands.collect { command ->
                             when (command) {
                                 is TerminalCommand.Update -> terminalView.onScreenUpdated()

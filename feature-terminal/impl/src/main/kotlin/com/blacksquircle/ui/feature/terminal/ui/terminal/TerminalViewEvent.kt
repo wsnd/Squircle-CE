@@ -20,4 +20,5 @@ import com.blacksquircle.ui.core.mvi.ViewEvent
 
 internal sealed class TerminalViewEvent : ViewEvent {
     data object ScrollToEnd : TerminalViewEvent()
+    data object NotifyEmpty : TerminalViewEvent()
 }

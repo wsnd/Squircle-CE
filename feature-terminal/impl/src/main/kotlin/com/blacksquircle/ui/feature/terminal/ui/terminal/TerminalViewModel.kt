@@ -19,12 +19,9 @@ package com.blacksquircle.ui.feature.terminal.ui.terminal
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.blacksquircle.ui.core.event.AppEvent
-import com.blacksquircle.ui.core.event.EventBus
 import com.blacksquircle.ui.core.extensions.indexOf
 import com.blacksquircle.ui.core.mvi.ViewEvent
 import com.blacksquircle.ui.core.settings.SettingsManager
-import com.blacksquircle.ui.feature.terminal.api.model.RuntimeType
 import com.blacksquircle.ui.feature.terminal.api.model.ShellArgs
 import com.blacksquircle.ui.feature.terminal.domain.manager.RuntimeManager
 import com.blacksquircle.ui.feature.terminal.domain.manager.SessionManager
@@ -62,8 +59,8 @@ internal class TerminalViewModel @AssistedInject constructor(
 
     private var sessions = emptyList<SessionModel>()
     private var selectedSession: String? = null
-    private var internalPendingCommand: String? = null 
-    private var isInitializing = false // NEW: Lock to prevent double creation
+    private var internalPendingCommand: ShellArgs? = null 
+    private var isInitializing = false 
 
     init {
         loadSessions()
@@ -78,18 +75,14 @@ internal class TerminalViewModel @AssistedInject constructor(
             Timber.d("TERMINAL_EXEC: Received command -> $command")
             
             val currentSession = sessions.find { it.id == selectedSession }
-            if (currentSession != null) {
-                Timber.d("TERMINAL_EXEC: Session exists, writing directly")
-                kotlinx.coroutines.delay(500) 
+            if (currentSession != null && !isInitializing) {
+                Timber.d("TERMINAL_EXEC: Session exists and ready, writing directly")
                 currentSession.session.write("$command\n")
-                internalPendingCommand = null // Clear queue on success
             } else {
-                Timber.d("TERMINAL_EXEC: No session ready, queuing command...")
-                internalPendingCommand = command 
-                
-                // ONLY create if not already in the middle of initialization
-                if (!isInitializing && sessionManager.sessions().isEmpty()) {
-                    Timber.d("TERMINAL_EXEC: Triggering guarded session creation")
+                Timber.d("TERMINAL_EXEC: No session ready, queuing for new session...")
+                // Capture command for the session that's about to be created
+                internalPendingCommand = ShellArgs(command = command) 
+                if (!isInitializing && sessions.isEmpty()) {
                     onCreateSessionClicked()
                 }
             }
@@ -104,13 +97,14 @@ internal class TerminalViewModel @AssistedInject constructor(
     }
 
     fun onCreateSessionClicked() {
-        if (isInitializing) return // Protection
+        if (isInitializing) return 
         isInitializing = true
         
         viewModelScope.launch {
             try {
                 createRuntime { runtime ->
-                    selectedSession = sessionManager.createSession(runtime)
+                    val args = internalPendingCommand ?: pendingCommand
+                    selectedSession = sessionManager.createSession(runtime, args)
                     sessions = sessionManager.sessions()
 
                     _viewState.update {
@@ -119,6 +113,7 @@ internal class TerminalViewModel @AssistedInject constructor(
                             selectedSession = selectedSession,
                         )
                     }
+                    internalPendingCommand = null 
 
                     viewModelScope.launch {
                         _viewEvent.send(TerminalViewEvent.ScrollToEnd)
@@ -151,7 +146,10 @@ internal class TerminalViewModel @AssistedInject constructor(
         sessionManager.closeSession(sessionModel.id)
 
         if (sessions.isEmpty()) {
-            navigator.goBack()
+            viewModelScope.launch {
+                _viewEvent.send(TerminalViewEvent.NotifyEmpty)
+                // REMOVED loadSessions() - No pre-warming to ensure clean state
+            }
         } else {
             _viewState.update {
                 it.copy(
@@ -208,7 +206,8 @@ internal class TerminalViewModel @AssistedInject constructor(
 
                 if (sessions.isEmpty() || pendingCommand != null) {
                     createRuntime { runtime ->
-                        val sessionId = sessionManager.createSession(runtime, pendingCommand)
+                        val args = internalPendingCommand ?: pendingCommand
+                        val sessionId = sessionManager.createSession(runtime, args)
 
                         sessions = sessionManager.sessions()
                         selectedSession = sessionId
@@ -219,15 +218,10 @@ internal class TerminalViewModel @AssistedInject constructor(
                                 selectedSession = selectedSession,
                             )
                         }
+                        internalPendingCommand = null
 
-                        pendingCommand?.command?.let { command ->
-                            executeCommandInTerminal(command)
-                        }
-
-                        // Also process any commands that arrived via EventBus while initializing
-                        internalPendingCommand?.let { command ->
-                            executeCommandInTerminal(command)
-                            internalPendingCommand = null
+                        viewModelScope.launch {
+                            _viewEvent.send(TerminalViewEvent.ScrollToEnd)
                         }
                     }
                 } else {
@@ -236,12 +230,6 @@ internal class TerminalViewModel @AssistedInject constructor(
                             sessions = sessions,
                             selectedSession = selectedSession,
                         )
-                    }
-                    
-                    // Process buffered command if sessions already exist
-                    internalPendingCommand?.let { command ->
-                        executeCommandInTerminal(command)
-                        internalPendingCommand = null
                     }
                 }
             } finally {

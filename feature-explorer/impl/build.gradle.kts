@@ -40,13 +40,14 @@ dependencies {
     implementation(project(":feature-explorer:api"))
     implementation(project(":feature-git:api"))
     implementation(project(":feature-servers:api"))
+    implementation(project(":feature-settings:api"))
     implementation(project(":feature-terminal:api"))
     implementation(project(":filesystems:filesystem-local"))
     implementation(project(":filesystems:filesystem-root"))
     implementation(project(":filesystems:filesystem-saf"))
 
     implementation(libs.androidx.lifecycle.service)
-    implementation(libs.scottyab.rootbeer)
+    api(libs.scottyab.rootbeer)
 
     implementation(libs.google.dagger)
     ksp(libs.google.dagger.compiler)

@@ -44,7 +44,7 @@ import com.blacksquircle.ui.ds.toolbar.Toolbar
 import com.blacksquircle.ui.ds.toolbar.ToolbarSizeDefaults
 import com.blacksquircle.ui.feature.explorer.R
 import com.blacksquircle.ui.feature.explorer.domain.model.SortMode
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceType
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceType
 import com.blacksquircle.ui.feature.explorer.ui.explorer.menu.SelectionMenu
 import com.blacksquircle.ui.feature.explorer.ui.explorer.menu.SortingMenu
 import com.blacksquircle.ui.feature.explorer.ui.explorer.model.FileNode
@@ -59,6 +59,7 @@ import com.blacksquircle.ui.ds.layout.WindowSize
 
 @Composable
 internal fun ExplorerToolbar(
+    workspaceName: String,
     workspaceType: WorkspaceType,
     searchQuery: String,
     selection: List<FileNode>,
@@ -81,6 +82,8 @@ internal fun ExplorerToolbar(
     onCopyPathClicked: () -> Unit = {},
     onCompressClicked: () -> Unit = {},
     onBackClicked: () -> Unit = {},
+    onCreateClicked: () -> Unit = {},
+    onRefreshClicked: () -> Unit = {},
 ) {
     val windowSize = SquircleLayout.windowSize
     val isExpanded = windowSize == WindowSize.Expanded
@@ -101,7 +104,7 @@ internal fun ExplorerToolbar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = stringResource(R.string.explorer_workspace_button_files).uppercase(),
+                text = workspaceName.uppercase(),
                 style = SquircleTheme.typography.text12Regular,
                 fontWeight = FontWeight.Bold,
                 color = SquircleTheme.colors.colorTextAndIconSecondary,
@@ -109,12 +112,19 @@ internal fun ExplorerToolbar(
             )
 
             IconButton(
-                iconResId = UiR.drawable.ic_search,
-                onClick = { searchMode = !searchMode },
+                iconResId = UiR.drawable.ic_plus,
+                onClick = onCreateClicked,
                 iconButtonSize = IconButtonSizeDefaults.S,
-                contentDescription = stringResource(android.R.string.search_go)
+                contentDescription = stringResource(R.string.explorer_menu_selection_create)
             )
-            
+
+            IconButton(
+                iconResId = UiR.drawable.ic_refresh,
+                onClick = onRefreshClicked,
+                iconButtonSize = IconButtonSizeDefaults.S,
+                contentDescription = stringResource(R.string.explorer_menu_selection_refresh)
+            )
+
             IconButton(
                 iconResId = UiR.drawable.ic_dots_vertical,
                 onClick = { expanded = true },
@@ -198,9 +208,14 @@ internal fun ExplorerToolbar(
 
                 if (!searchMode && !selectionMode) {
                     IconButton(
-                        iconResId = UiR.drawable.ic_search,
-                        onClick = { searchMode = true },
-                        contentDescription = stringResource(android.R.string.search_go)
+                        iconResId = UiR.drawable.ic_plus,
+                        onClick = onCreateClicked,
+                        contentDescription = stringResource(R.string.explorer_menu_selection_create)
+                    )
+                    IconButton(
+                        iconResId = UiR.drawable.ic_refresh,
+                        onClick = onRefreshClicked,
+                        contentDescription = stringResource(R.string.explorer_menu_selection_refresh)
                     )
                 }
 
@@ -273,6 +288,7 @@ internal fun ExplorerToolbar(
 private fun ExplorerToolbarPreview() {
     PreviewBackground {
         ExplorerToolbar(
+            workspaceName = "Local",
             workspaceType = WorkspaceType.LOCAL,
             searchQuery = "",
             selection = emptyList(),

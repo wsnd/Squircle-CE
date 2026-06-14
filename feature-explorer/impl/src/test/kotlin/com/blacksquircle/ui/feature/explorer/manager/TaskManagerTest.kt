@@ -18,8 +18,8 @@ package com.blacksquircle.ui.feature.explorer.manager
 
 import com.blacksquircle.ui.feature.explorer.data.manager.TaskAction
 import com.blacksquircle.ui.feature.explorer.data.manager.TaskManager
-import com.blacksquircle.ui.feature.explorer.domain.model.TaskStatus
-import com.blacksquircle.ui.feature.explorer.domain.model.TaskType
+import com.blacksquircle.ui.feature.explorer.api.model.TaskStatus
+import com.blacksquircle.ui.feature.explorer.api.model.TaskType
 import com.blacksquircle.ui.test.provider.TestDispatcherProvider
 import com.blacksquircle.ui.test.rule.TimberConsoleRule
 import junit.framework.TestCase.assertEquals

@@ -1,0 +1,140 @@
+# Third-Party Licenses
+
+This document lists all third-party libraries used in Squircle CE and their respective licenses.
+
+---
+
+## Apache License 2.0
+
+The following libraries are licensed under Apache License 2.0:
+
+### Dagger (Google)
+- Repository: https://github.com/google/dagger
+- Copyright: Google Inc.
+- License: Apache License 2.0
+
+### Retrofit (Square)
+- Repository: https://github.com/square/retrofit
+- Copyright: Square, Inc.
+- License: Apache License 2.0
+
+### Room (Android Jetpack)
+- Repository: https://developer.android.com/jetpack/androidx/releases/room
+- Copyright: Android Open Source Project
+- License: Apache License 2.0
+
+### Kotlin Coroutines
+- Repository: https://github.com/Kotlin/kotlinx.coroutines
+- Copyright: JetBrains s.r.o.
+- License: Apache License 2.0
+
+### Timber (Jake Wharton)
+- Repository: https://github.com/JakeWharton/timber
+- Copyright: Jake Wharton
+- License: Apache License 2.0
+
+---
+
+## MIT License
+
+The following libraries are licensed under MIT License:
+
+### ColorPicker
+- Repository: https://github.com/Skydoves/ColorPicker
+- Copyright: skydoves (Jaewoong Eum)
+- License: MIT License
+
+### Zip4j
+- Repository: https://github.com/srikanth-lingala/zip4j
+- Copyright: Srikanth Reddy Lingala
+- License: MIT License
+
+---
+
+## BSD License
+
+The following libraries are licensed under BSD-style licenses:
+
+### JGit (Eclipse)
+- Repository: https://github.com/eclipse-jgit/jgit
+- Copyright: Eclipse Foundation
+- License: Eclipse Distribution License 1.0 (BSD-3-Clause)
+
+### JSch
+- Repository: http://www.jcraft.com/jsch/
+- Copyright: ymnk, JCraft, Inc.
+- License: BSD-style
+
+---
+
+## GNU Lesser General Public License v2.1 (LGPL-2.1)
+
+The following libraries are licensed under LGPL v2.1:
+
+### Sora Editor
+- Repository: https://github.com/Rosemoe/sora-editor
+- Copyright: Rosemoe
+- License: GNU Lesser General Public License v2.1
+
+Full license text available at:
+https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
+
+**Important Notice for Sora Editor:**
+
+This application dynamically links to the Sora Editor library. Under LGPL v2.1,
+you have the right to replace this library with a modified version. The build
+scripts and source code are available in the project repository.
+
+If you modify the Sora Editor library itself, those modifications must be
+released under LGPL v2.1 or later. However, the main application code remains
+under Apache License 2.0 and is not subject to LGPL's copyleft provisions.
+
+---
+
+## Python Software Foundation License
+
+### Python Runtime
+- Repository: https://github.com/python/cpython
+- Copyright: Python Software Foundation
+- License: Python Software Foundation License Version 2
+
+Python is bundled with this application to provide Python scripting support.
+Python is open source and can be freely used, modified, and distributed.
+
+Full license text available at:
+https://docs.python.org/3/license.html
+
+---
+
+## Eclipse Public License 2.0 (EPL-2.0)
+
+Some Eclipse-related components may be licensed under EPL-2.0. Please check
+individual module documentation for details.
+
+---
+
+## Summary
+
+| License | Libraries |
+|---------|-----------|
+| Apache 2.0 | Dagger, Retrofit, Room, Kotlin Coroutines, Timber, and others |
+| MIT | ColorPicker, Zip4j |
+| BSD | JGit, JSch |
+| LGPL v2.1 | Sora Editor |
+| PSF License | Python Runtime |
+| EPL 2.0 | Some Eclipse components (if applicable) |
+
+---
+
+## Contact
+
+If you have any questions about licensing or compliance, please contact us
+through the project repository or open an issue on GitHub.
+
+---
+
+**Note:** This file is provided for informational purposes. For the most
+accurate and up-to-date license information, please refer to the official
+repositories of each library.
+
+Last updated: 2024

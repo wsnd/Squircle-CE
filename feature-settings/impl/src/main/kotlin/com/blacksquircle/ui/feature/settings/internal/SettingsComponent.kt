@@ -20,6 +20,7 @@ import android.content.Context
 import com.blacksquircle.ui.core.internal.CoreApi
 import com.blacksquircle.ui.core.internal.provideCoreApi
 import com.blacksquircle.ui.feature.settings.ui.about.AboutHeaderViewModel
+import com.blacksquircle.ui.feature.settings.ui.about.OpenSourceLicensesViewModel
 import com.blacksquircle.ui.feature.settings.ui.application.AppHeaderViewModel
 import com.blacksquircle.ui.feature.settings.ui.codestyle.CodeHeaderViewModel
 import com.blacksquircle.ui.feature.settings.ui.editor.EditorHeaderViewModel
@@ -51,6 +52,7 @@ internal interface SettingsComponent {
     fun inject(factory: TerminalHeaderViewModel.Factory)
     fun inject(factory: GitHeaderViewModel.Factory)
     fun inject(factory: AboutHeaderViewModel.Factory)
+    fun inject(factory: OpenSourceLicensesViewModel.Factory)
 
     @Component.Factory
     interface Factory {

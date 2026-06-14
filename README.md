@@ -74,3 +74,16 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ```
+
+### Third-Party Licenses
+
+This project uses several open source libraries:
+
+- **Sora Editor** - Licensed under [LGPL v2.1](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html)
+- **Python Runtime** - Licensed under [PSF License](https://docs.python.org/3/license.html)
+- And many others under Apache 2.0, MIT, BSD, and other licenses
+
+For complete license information, please see:
+- [NOTICE](NOTICE) - Attribution notices
+- [THIRD-PARTY-LICENSES](THIRD-PARTY-LICENSES) - Complete third-party licenses
+- [OPEN-SOURCE-LICENSES.md](OPEN-SOURCE-LICENSES.md) - User-friendly license summary

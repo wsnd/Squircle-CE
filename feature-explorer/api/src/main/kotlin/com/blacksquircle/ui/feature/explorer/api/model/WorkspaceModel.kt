@@ -14,20 +14,13 @@
  * limitations under the License.
  */
 
-package com.blacksquircle.ui.feature.explorer.domain.model
+package com.blacksquircle.ui.feature.explorer.api.model
 
-enum class WorkspaceType(val value: String) {
-    LOCAL("local"),
-    ROOT("root"),
-    CUSTOM("custom"),
-    SERVER("server");
+import com.blacksquircle.ui.filesystem.base.model.FileModel
 
-    fun isLocal(): Boolean = this == LOCAL || this == CUSTOM
-
-    companion object {
-
-        fun of(value: String): WorkspaceType {
-            return entries.find { it.value == value } ?: LOCAL
-        }
-    }
-}
+data class WorkspaceModel(
+    val uuid: String,
+    val name: String,
+    val type: WorkspaceType,
+    val defaultLocation: FileModel,
+)

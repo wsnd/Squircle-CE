@@ -16,6 +16,7 @@
 
 package com.blacksquircle.ui.feature.explorer.ui.explorer
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -42,7 +43,7 @@ import com.blacksquircle.ui.feature.explorer.api.navigation.RenameFileRoute
 import com.blacksquircle.ui.feature.explorer.api.navigation.ServerAuthRoute
 import com.blacksquircle.ui.feature.explorer.api.navigation.StorageDeniedRoute
 import com.blacksquircle.ui.feature.explorer.api.navigation.TaskRoute
-import com.blacksquircle.ui.feature.explorer.data.manager.TaskManager
+import com.blacksquircle.ui.feature.explorer.api.manager.TaskManager
 import com.blacksquircle.ui.feature.explorer.data.node.NodeBuilderOptions
 import com.blacksquircle.ui.feature.explorer.data.node.async.AsyncNodeBuilder
 import com.blacksquircle.ui.feature.explorer.data.node.ensureCommonParentKey
@@ -52,16 +53,17 @@ import com.blacksquircle.ui.feature.explorer.data.node.removeNode
 import com.blacksquircle.ui.feature.explorer.data.node.updateNode
 import com.blacksquircle.ui.feature.explorer.domain.model.ErrorAction
 import com.blacksquircle.ui.feature.explorer.domain.model.SortMode
-import com.blacksquircle.ui.feature.explorer.domain.model.TaskStatus
-import com.blacksquircle.ui.feature.explorer.domain.model.TaskType
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceModel
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceType
-import com.blacksquircle.ui.feature.explorer.domain.repository.ExplorerRepository
+import com.blacksquircle.ui.feature.explorer.api.model.TaskStatus
+import com.blacksquircle.ui.feature.explorer.api.model.TaskType
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceModel
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceType
+import com.blacksquircle.ui.feature.explorer.api.repository.ExplorerRepository
 import com.blacksquircle.ui.feature.explorer.ui.explorer.model.ErrorState
 import com.blacksquircle.ui.feature.explorer.ui.explorer.model.FileNode
 import com.blacksquircle.ui.feature.explorer.ui.explorer.model.NodeKey
 import com.blacksquircle.ui.feature.servers.api.interactor.ServerInteractor
 import com.blacksquircle.ui.feature.servers.api.navigation.ServerDetailsRoute
+import com.blacksquircle.ui.feature.settings.api.navigation.HeaderListRoute
 import com.blacksquircle.ui.feature.terminal.api.interactor.TerminalInteractor
 import com.blacksquircle.ui.feature.terminal.api.model.ShellArgs
 import com.blacksquircle.ui.feature.terminal.api.navigation.TerminalRoute
@@ -86,6 +88,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Provider
 import com.blacksquircle.ui.ds.R as UiR
@@ -259,6 +262,10 @@ internal class ExplorerViewModel @Inject constructor(
         }
     }
 
+    fun onSettingsClicked() {
+        navigator.navigate(HeaderListRoute)
+    }
+
     fun onFileClicked(fileNode: FileNode) {
         if (selectedNodes.isNotEmpty()) {
             onFileSelected(fileNode)
@@ -312,8 +319,24 @@ internal class ExplorerViewModel @Inject constructor(
 
     fun onRefreshClicked() {
         viewModelScope.launch {
-            val fileNode = selectedNodes.firstOrNull() ?: return@launch
-            loadFiles(fileNode)
+            val selected = selectedNodes.firstOrNull()
+            val nodeToRefresh = when {
+                selected != null -> if (selected.isDirectory) selected else {
+                    val parentKey = cache.findParentKey(selected.key)
+                    if (parentKey != null) cache.findNodeByKey(parentKey) else null
+                }
+                else -> cache[NodeKey.Root]?.firstOrNull()
+            }
+
+            if (nodeToRefresh != null) {
+                // If refreshing root, clear cache to force deep refresh of expanded folders
+                if (nodeToRefresh.isRoot) {
+                    val root = cache[NodeKey.Root]
+                    cache.clear()
+                    cache[NodeKey.Root] = root.orEmpty()
+                }
+                loadFiles(nodeToRefresh)
+            }
 
             selectedNodes = emptyList()
             _viewState.update {
@@ -324,8 +347,7 @@ internal class ExplorerViewModel @Inject constructor(
 
     fun onCreateClicked() {
         viewModelScope.launch {
-            val fileNode = selectedNodes.firstOrNull() ?: return@launch
-
+            val fileNode = findTargetNode() ?: return@launch
             taskType = TaskType.CREATE
             taskBuffer = listOf(fileNode)
             selectedNodes = emptyList()
@@ -335,9 +357,25 @@ internal class ExplorerViewModel @Inject constructor(
                     selectedNodes = selectedNodes,
                 )
             }
-
-            navigator.navigate(CreateFileRoute)
+            navigator.navigate(CreateFileRoute(isFolder = false))
         }
+    }
+
+    private fun findTargetNode(): FileNode? {
+        val selected = selectedNodes.firstOrNull()
+        if (selected != null) {
+            return if (selected.isDirectory) {
+                selected
+            } else {
+                val parentKey = cache.findParentKey(selected.key)
+                if (parentKey != null) {
+                    cache.findNodeByKey(parentKey)
+                } else {
+                    cache[NodeKey.Root]?.firstOrNull()
+                }
+            }
+        }
+        return cache[NodeKey.Root]?.firstOrNull()
     }
 
     fun onCloneClicked() {

@@ -23,7 +23,7 @@ import javax.inject.Inject
 import javax.inject.Provider
 
 internal class AboutHeaderViewModel @Inject constructor(
-    private val navigator: Navigator,
+    val navigator: Navigator,
 ) : ViewModel() {
 
     fun onBackClicked() {

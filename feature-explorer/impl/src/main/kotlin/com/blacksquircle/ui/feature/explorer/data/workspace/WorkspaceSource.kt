@@ -16,9 +16,9 @@
 
 package com.blacksquircle.ui.feature.explorer.data.workspace
 
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceModel
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceModel
 import kotlinx.coroutines.flow.Flow
 
-internal interface WorkspaceSource {
+interface WorkspaceSource {
     val workspaceFlow: Flow<List<WorkspaceModel>>
 }

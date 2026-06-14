@@ -19,8 +19,8 @@ package com.blacksquircle.ui.feature.explorer.data.workspace
 import android.content.Context
 import android.os.Environment
 import com.blacksquircle.ui.feature.explorer.R
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceModel
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceType
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceModel
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceType
 import com.blacksquircle.ui.filesystem.base.model.FileModel
 import com.blacksquircle.ui.filesystem.local.LocalFilesystem
 import com.blacksquircle.ui.filesystem.root.RootFilesystem

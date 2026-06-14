@@ -45,6 +45,7 @@ import com.blacksquircle.ui.core.contract.ContractResult
 import com.blacksquircle.ui.core.contract.MimeType
 import com.blacksquircle.ui.core.contract.rememberCreateFileContract
 import com.blacksquircle.ui.core.contract.rememberOpenFileContract
+import com.blacksquircle.ui.core.contract.rememberOpenFolderContract
 import com.blacksquircle.ui.core.effect.CleanupEffect
 import com.blacksquircle.ui.core.effect.ResultEffect
 import com.blacksquircle.ui.core.extensions.daggerViewModel
@@ -104,6 +105,9 @@ internal fun EditorScreen(
     
     var sidePaneWidth by rememberSaveable { mutableStateOf(300f) }
     var bottomPanelHeight by rememberSaveable { mutableStateOf(300f) }
+    
+    // Search panel state
+    var searchPanelVisible by rememberSaveable { mutableStateOf(false) }
 
     EditorScreen(
         viewState = viewState,
@@ -114,6 +118,7 @@ internal fun EditorScreen(
         column = column,
         sidePaneWidth = sidePaneWidth.dp,
         bottomPanelHeight = bottomPanelHeight.dp,
+        searchPanelVisible = searchPanelVisible,
         onSidePaneWidthChanged = { sidePaneWidth = it.value },
         onBottomPanelHeightChanged = { bottomPanelHeight = it.value },
         onCursorChanged = { l, c ->
@@ -122,13 +127,30 @@ internal fun EditorScreen(
         },
         onDrawerClicked = {
             scope.launch {
+                // Close search panel when opening file explorer
+                if (searchPanelVisible) {
+                    searchPanelVisible = false
+                }
+                // Toggle drawer state
                 if (drawerState.isOpen) drawerState.close() else drawerState.open()
+            }
+        },
+        onSearchClicked = {
+            scope.launch {
+                // Close drawer when opening search
+                if (drawerState.isOpen) {
+                    drawerState.close()
+                }
+                // Toggle search panel
+                searchPanelVisible = !searchPanelVisible
             }
         },
         onNewFileClicked = viewModel::onNewFileClicked,
         onOpenFileClicked = viewModel::onOpenFileClicked,
+        onOpenFolderClicked = viewModel::onOpenFolderClicked,
         onSaveFileClicked = viewModel::onSaveFileClicked,
         onSaveFileAsClicked = viewModel::onSaveFileAsClicked,
+        onSaveAllClicked = viewModel::onSaveAllClicked,
         onReloadFileClicked = viewModel::onReloadFileClicked,
         onRunPythonClicked = { viewModel.onRunPythonClicked(isTablet) },
         onReadOnlyClicked = viewModel::onReadOnlyClicked,
@@ -167,19 +189,18 @@ internal fun EditorScreen(
         onSettingsClicked = viewModel::onSettingsClicked,
         onDocumentClicked = viewModel::onDocumentClicked,
         onDocumentMoved = viewModel::onDocumentMoved,
+        onCloseFileClicked = viewModel::onCloseFileClicked,
         onCloseClicked = viewModel::onCloseClicked,
-        onCloseOthersClicked = viewModel::onCloseOthersClicked,
+        onCloseOthersClicked = { viewModel.onCloseOthersClicked(it) },
         onCloseAllClicked = viewModel::onCloseAllClicked,
         onErrorActionClicked = viewModel::onErrorActionClicked,
         onExtraKeyClicked = viewModel::onExtraKeyClicked,
         onExtraOptionsClicked = viewModel::onExtraOptionsClicked,
         onToggleBottomPanel = viewModel::onToggleBottomPanel,
+        autoSave = viewState.settings.autoSaveFiles,
+        onAutoSaveClicked = viewModel::onAutoSaveClicked,
     )
 
-    val defaultFileName = stringResource(UiR.string.common_untitled)
-    val newFileContract = rememberCreateFileContract(MimeType.TEXT) { result ->
-        if (result is ContractResult.Success) viewModel.onFileOpened(result.uri)
-    }
     val openFileContract = rememberOpenFileContract { result ->
         if (result is ContractResult.Success) viewModel.onFileOpened(result.uri)
     }
@@ -189,14 +210,18 @@ internal fun EditorScreen(
 
     val activity = LocalActivity.current
     val context = LocalContext.current
+    val openFolderContract = rememberOpenFolderContract { result ->
+        if (result is ContractResult.Success) viewModel.onFolderSelected(result.uri)
+    }
+
     LaunchedEffect(Unit) {
         viewModel.viewEvent.collect { event ->
             when (event) {
                 is ViewEvent.Toast -> context.showToast(text = event.message)
                 is EditorViewEvent.Finish -> activity?.finish()
                 is EditorViewEvent.ScrollToEnd -> tabsState.animateScrollToItem(viewState.documents.size)
-                is EditorViewEvent.CreateFileContract -> newFileContract.launch(defaultFileName)
                 is EditorViewEvent.OpenFileContract -> openFileContract.launch(arrayOf(MimeType.ANY))
+                is EditorViewEvent.OpenFolderContract -> openFolderContract.launch(null)
                 is EditorViewEvent.SaveAsFileContract -> saveFileContract.launch(event.fileName)
                 is EditorViewEvent.Command -> scope.launch { editorController.send(event.command) }
             }
@@ -209,6 +234,7 @@ internal fun EditorScreen(
     ResultEffect<Int>(KEY_INSERT_COLOR) { viewModel.onColorSelected(it) }
     ResultEffect<Unit>(KEY_PULL) { viewModel.onReloadFileClicked() }
     ResultEffect<Unit>(KEY_CHECKOUT) { viewModel.onReloadFileClicked() }
+    ResultEffect<String>(com.blacksquircle.ui.feature.explorer.api.navigation.KEY_CREATE_FILE) { viewModel.onCreateFileResult(it) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onResumed() }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.onPaused() }
@@ -227,11 +253,15 @@ private fun EditorScreen(
     editorController: EditorController,
     drawerState: DrawerState,
     tabsState: LazyListState,
+    searchPanelVisible: Boolean = false,
     onDrawerClicked: () -> Unit = {},
+    onSearchClicked: () -> Unit = {},
     onNewFileClicked: () -> Unit = {},
     onOpenFileClicked: () -> Unit = {},
+    onOpenFolderClicked: () -> Unit = {},
     onSaveFileClicked: () -> Unit = {},
     onSaveFileAsClicked: () -> Unit = {},
+    onSaveAllClicked: () -> Unit = {},
     onReloadFileClicked: () -> Unit = {},
     onRunPythonClicked: () -> Unit = {},
     onReadOnlyClicked: () -> Unit = {},
@@ -268,9 +298,12 @@ private fun EditorScreen(
     onSettingsClicked: () -> Unit = {},
     onDocumentClicked: (DocumentModel) -> Unit = {},
     onDocumentMoved: (from: Int, to: Int) -> Unit = { _, _ -> },
+    onCloseFileClicked: () -> Unit = {},
     onCloseClicked: (DocumentModel) -> Unit = {},
     onCloseOthersClicked: (DocumentModel) -> Unit = {},
     onCloseAllClicked: () -> Unit = {},
+    autoSave: Boolean = false,
+    onAutoSaveClicked: () -> Unit = {},
     onErrorActionClicked: (ErrorAction) -> Unit = {},
     onExtraKeyClicked: (Char) -> Unit = {},
     onExtraOptionsClicked: () -> Unit = {},
@@ -291,33 +324,47 @@ private fun EditorScreen(
 
     Row(modifier = Modifier.fillMaxSize()) {
         if (isTablet) {
-            NavigationRail {
+            NavigationRail(
+                footer = {
+                    NavigationRailItem(
+                        iconResId = UiR.drawable.ic_settings,
+                        selected = false,
+                        onClick = onSettingsClicked,
+                    )
+                }
+            ) {
                 NavigationRailItem(
                     iconResId = UiR.drawable.ic_folder,
                     selected = drawerState.isOpen,
                     onClick = onDrawerClicked,
                 )
                 NavigationRailItem(
-                    iconResId = UiR.drawable.ic_console,
-                    selected = viewState.bottomPanelVisible,
-                    onClick = onToggleBottomPanel,
-                )
-                NavigationRailItem(
-                    iconResId = UiR.drawable.ic_settings,
-                    selected = false,
-                    onClick = onSettingsClicked,
+                    iconResId = UiR.drawable.ic_file_find,
+                    selected = searchPanelVisible,
+                    onClick = onSearchClicked,
                 )
             }
             VerticalDivider()
         }
 
-        if (isTablet && drawerState.isOpen) {
+        if (isTablet && (drawerState.isOpen || searchPanelVisible)) {
             Surface(
                 modifier = Modifier.width(sidePaneWidth).fillMaxHeight(),
                 shape = RectangleShape,
                 color = SquircleTheme.colors.colorBackgroundSecondary
             ) {
-                DrawerExplorer(onDrawerClicked)
+                if (searchPanelVisible) {
+                    // Show search panel
+                    androidx.compose.material.Text(
+                        text = "Search Panel (Coming Soon)",
+                        style = SquircleTheme.typography.text16Regular,
+                        color = SquircleTheme.colors.colorTextAndIconSecondary,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                } else {
+                    // Show file explorer
+                    DrawerExplorer(onDrawerClicked)
+                }
             }
             VerticalDraggableDivider(
                 onDrag = { onSidePaneWidthChanged((sidePaneWidth + it).coerceIn(200.dp, 600.dp)) }
@@ -332,8 +379,10 @@ private fun EditorScreen(
                         onDrawerClicked = onDrawerClicked,
                         onNewFileClicked = onNewFileClicked,
                         onOpenFileClicked = onOpenFileClicked,
+                        onOpenFolderClicked = onOpenFolderClicked,
                         onSaveFileClicked = onSaveFileClicked,
                         onSaveFileAsClicked = onSaveFileAsClicked,
+                        onSaveAllClicked = onSaveAllClicked,
                         onReloadFileClicked = onReloadFileClicked,
                         onRunPythonClicked = onRunPythonClicked,
                         onCutClicked = onCutClicked,
@@ -354,7 +403,13 @@ private fun EditorScreen(
                         onPushClicked = onPushClicked,
                         onCheckoutClicked = onCheckoutClicked,
                         onTerminalClicked = onTerminalClicked,
-                        onSettingsClicked = onSettingsClicked,
+                        onCloseFileClicked = onCloseFileClicked,
+                        onCloseOthersClicked = { 
+                            viewState.currentDocument?.document?.let(onCloseOthersClicked) 
+                        },
+                        onCloseAllClicked = onCloseAllClicked,
+                        autoSave = autoSave,
+                        onAutoSaveClicked = onAutoSaveClicked,
                     )
                 },
                 bottomBar = {

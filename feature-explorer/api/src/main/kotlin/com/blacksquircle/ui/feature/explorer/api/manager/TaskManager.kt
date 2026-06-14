@@ -14,15 +14,18 @@
  * limitations under the License.
  */
 
-package com.blacksquircle.ui.feature.explorer.domain.model
+package com.blacksquircle.ui.feature.explorer.api.manager
 
-internal data class Task(
-    val id: String,
-    val type: TaskType,
-    val status: TaskStatus = TaskStatus.Pending,
-    val timestamp: Long = System.currentTimeMillis(),
-) {
+import com.blacksquircle.ui.feature.explorer.api.model.Task
+import com.blacksquircle.ui.feature.explorer.api.model.TaskStatus
+import com.blacksquircle.ui.feature.explorer.api.model.TaskType
+import kotlinx.coroutines.flow.StateFlow
 
-    val isFinished: Boolean
-        get() = status is TaskStatus.Done || status is TaskStatus.Error
+typealias TaskAction = suspend (suspend (TaskStatus) -> Unit) -> Unit
+
+interface TaskManager {
+    fun execute(taskType: TaskType, action: TaskAction): String
+    fun monitor(taskId: String): StateFlow<Task>
+    fun cancel(taskId: String)
+    fun isIdle(): Boolean
 }

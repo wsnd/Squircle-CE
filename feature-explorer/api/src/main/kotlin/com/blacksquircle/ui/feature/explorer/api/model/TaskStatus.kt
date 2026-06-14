@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-package com.blacksquircle.ui.feature.explorer.domain.model
+package com.blacksquircle.ui.feature.explorer.api.model
 
-import com.blacksquircle.ui.filesystem.base.model.FileModel
+import java.lang.Exception
 
-internal data class WorkspaceModel(
-    val uuid: String,
-    val name: String,
-    val type: WorkspaceType,
-    val defaultLocation: FileModel,
-)
+sealed class TaskStatus {
+
+    data object Pending : TaskStatus()
+    data class Progress(val count: Int, val totalCount: Int, val details: String) : TaskStatus()
+    data class Error(val exception: Exception) : TaskStatus()
+    data object Done : TaskStatus()
+}

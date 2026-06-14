@@ -19,5 +19,10 @@ package com.blacksquircle.ui.feature.explorer.api.navigation
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
+const val KEY_CREATE_FILE = "KEY_CREATE_FILE"
+const val KEY_CREATE_FOLDER = "KEY_CREATE_FOLDER"
+
 @Serializable
-data object CreateFileRoute : NavKey
+data class CreateFileRoute(
+    val isFolder: Boolean = false
+) : NavKey

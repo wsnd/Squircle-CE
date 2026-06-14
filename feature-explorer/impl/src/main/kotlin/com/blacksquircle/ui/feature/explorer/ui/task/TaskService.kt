@@ -28,10 +28,10 @@ import com.blacksquircle.ui.core.extensions.buildNotification
 import com.blacksquircle.ui.core.extensions.createChannel
 import com.blacksquircle.ui.core.service.ComponentService
 import com.blacksquircle.ui.feature.explorer.R
-import com.blacksquircle.ui.feature.explorer.data.manager.TaskManager
-import com.blacksquircle.ui.feature.explorer.domain.model.Task
-import com.blacksquircle.ui.feature.explorer.domain.model.TaskStatus
-import com.blacksquircle.ui.feature.explorer.domain.model.TaskType
+import com.blacksquircle.ui.feature.explorer.api.manager.TaskManager
+import com.blacksquircle.ui.feature.explorer.api.model.Task
+import com.blacksquircle.ui.feature.explorer.api.model.TaskStatus
+import com.blacksquircle.ui.feature.explorer.api.model.TaskType
 import com.blacksquircle.ui.feature.explorer.internal.ExplorerComponent
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach

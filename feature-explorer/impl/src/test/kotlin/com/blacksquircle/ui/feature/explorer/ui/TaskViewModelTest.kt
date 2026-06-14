@@ -18,9 +18,9 @@ package com.blacksquircle.ui.feature.explorer.ui
 
 import com.blacksquircle.ui.feature.explorer.api.navigation.NotificationDeniedRoute
 import com.blacksquircle.ui.feature.explorer.data.manager.TaskManager
-import com.blacksquircle.ui.feature.explorer.domain.model.Task
-import com.blacksquircle.ui.feature.explorer.domain.model.TaskStatus
-import com.blacksquircle.ui.feature.explorer.domain.model.TaskType
+import com.blacksquircle.ui.feature.explorer.api.model.Task
+import com.blacksquircle.ui.feature.explorer.api.model.TaskStatus
+import com.blacksquircle.ui.feature.explorer.api.model.TaskType
 import com.blacksquircle.ui.feature.explorer.ui.explorer.ExplorerViewEvent
 import com.blacksquircle.ui.feature.explorer.ui.task.TaskViewModel
 import com.blacksquircle.ui.feature.explorer.ui.task.TaskViewState

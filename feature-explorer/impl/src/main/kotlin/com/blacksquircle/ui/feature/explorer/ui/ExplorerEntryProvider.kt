@@ -58,8 +58,8 @@ internal class ExplorerEntryProvider : EntryProvider {
         entry<ServerAuthRoute>(metadata = DialogSceneStrategy.dialog()) { navArgs ->
             ServerAuthScreen(navArgs)
         }
-        entry<CreateFileRoute>(metadata = DialogSceneStrategy.dialog()) {
-            CreateFileScreen()
+        entry<CreateFileRoute>(metadata = DialogSceneStrategy.dialog()) { navArgs ->
+            CreateFileScreen(navArgs)
         }
         entry<CloneRepoRoute>(metadata = DialogSceneStrategy.dialog()) {
             CloneRepoScreen()

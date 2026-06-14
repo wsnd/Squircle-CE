@@ -16,22 +16,8 @@
 
 package com.blacksquircle.ui.feature.explorer.internal
 
-import android.content.Context
-import com.blacksquircle.ui.core.database.AppDatabase
-import com.blacksquircle.ui.core.database.dao.workspace.WorkspaceDao
 import com.blacksquircle.ui.core.provider.coroutine.DispatcherProvider
-import com.blacksquircle.ui.core.settings.SettingsManager
-import com.blacksquircle.ui.feature.explorer.api.factory.FilesystemFactory
-import com.blacksquircle.ui.feature.explorer.data.manager.TaskManager
 import com.blacksquircle.ui.feature.explorer.data.node.async.AsyncNodeBuilder
-import com.blacksquircle.ui.feature.explorer.data.repository.ExplorerRepositoryImpl
-import com.blacksquircle.ui.feature.explorer.data.workspace.DefaultWorkspaceSource
-import com.blacksquircle.ui.feature.explorer.data.workspace.ServerWorkspaceSource
-import com.blacksquircle.ui.feature.explorer.data.workspace.UserWorkspaceSource
-import com.blacksquircle.ui.feature.explorer.domain.repository.ExplorerRepository
-import com.blacksquircle.ui.feature.git.api.interactor.GitInteractor
-import com.blacksquircle.ui.feature.servers.api.interactor.ServerInteractor
-import com.scottyab.rootbeer.RootBeer
 import dagger.Module
 import dagger.Provides
 
@@ -42,73 +28,5 @@ internal object ExplorerModule {
     @ExplorerScope
     fun provideAsyncNodeBuilder(dispatcherProvider: DispatcherProvider): AsyncNodeBuilder {
         return AsyncNodeBuilder(dispatcherProvider)
-    }
-
-    @Provides
-    @ExplorerScope
-    fun provideTaskManager(dispatcherProvider: DispatcherProvider): TaskManager {
-        return TaskManager(dispatcherProvider)
-    }
-
-    @Provides
-    @ExplorerScope
-    fun provideExplorerRepository(
-        dispatcherProvider: DispatcherProvider,
-        settingsManager: SettingsManager,
-        taskManager: TaskManager,
-        gitInteractor: GitInteractor,
-        filesystemFactory: FilesystemFactory,
-        workspaceDao: WorkspaceDao,
-        defaultWorkspaceSource: DefaultWorkspaceSource,
-        userWorkspaceSource: UserWorkspaceSource,
-        serverWorkspaceSource: ServerWorkspaceSource,
-        context: Context,
-    ): ExplorerRepository {
-        return ExplorerRepositoryImpl(
-            dispatcherProvider = dispatcherProvider,
-            settingsManager = settingsManager,
-            taskManager = taskManager,
-            gitInteractor = gitInteractor,
-            filesystemFactory = filesystemFactory,
-            workspaceDao = workspaceDao,
-            defaultWorkspaceSource = defaultWorkspaceSource,
-            userWorkspaceSource = userWorkspaceSource,
-            serverWorkspaceSource = serverWorkspaceSource,
-            context = context,
-        )
-    }
-
-    @Provides
-    @ExplorerScope
-    fun provideDefaultWorkspaceSource(
-        rootBeer: RootBeer,
-        context: Context,
-    ): DefaultWorkspaceSource {
-        return DefaultWorkspaceSource(
-            rootBeer = rootBeer,
-            context = context
-        )
-    }
-
-    @Provides
-    @ExplorerScope
-    fun provideUserWorkspaceSource(workspaceDao: WorkspaceDao): UserWorkspaceSource {
-        return UserWorkspaceSource(workspaceDao)
-    }
-
-    @Provides
-    @ExplorerScope
-    fun provideServerWorkspaceSource(serverInteractor: ServerInteractor): ServerWorkspaceSource {
-        return ServerWorkspaceSource(serverInteractor)
-    }
-
-    @Provides
-    fun provideWorkspaceDao(appDatabase: AppDatabase): WorkspaceDao {
-        return appDatabase.workspaceDao()
-    }
-
-    @Provides
-    fun provideRootBeer(context: Context): RootBeer {
-        return RootBeer(context)
     }
 }

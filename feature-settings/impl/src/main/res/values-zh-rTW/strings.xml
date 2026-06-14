@@ -106,6 +106,20 @@
     <string name="settings_sort_mode_title">排序方式</string>
     <string name="settings_about_subtitle">Squircle CE 是依據 Apache 2.0 許可協議發布的開源專案\n\n目前版本: %1$s (%2$d)</string>
     <string name="settings_privacy_policy_title">查看「隱私權政策」</string>
+    <string name="settings_open_source_licenses_title">開源授權條款</string>
+    <string name="settings_open_source_licenses_subtitle">查看本應用程式使用的第三方函式庫授權條款</string>
+    
+    <!-- Open Source Licenses Screen -->
+    <string name="licenses_app_title">Squircle CE</string>
+    <string name="licenses_app_description">本應用程式基於開源軟體構建。我們感謝所有為此做出貢獻的開發者和貢獻者。</string>
+    <string name="licenses_core_components">核心元件</string>
+    <string name="licenses_major_dependencies">主要相依性</string>
+    <string name="licenses_important_notice">重要聲明</string>
+    <string name="licenses_lgl_notice">本應用程式使用基於 LGPL v2.1 授權的 Sora Editor。該函式庫透過 Maven 相依性動態連結。根據 LGPL v2.1，您有權用修改版本替換此函式庫。建置腳本可在專案儲存庫中找到。</string>
+    <string name="licenses_apache_notice">主應用程式程式碼仍然遵循 Apache License 2.0，不受 LGPL 傳染性條款的約束。</string>
+    <string name="licenses_complete_info">完整授權資訊</string>
+    <string name="licenses_complete_info_desc">如需包含所有相依性的完整授權資訊，請造訪我們的 GitHub 儲存庫。</string>
+    <string name="licenses_view_full">在 GitHub 上查看完整授權</string>
     <string name="settings_translation_title">翻譯平台</string>
     <string name="settings_translation_subtitle">將這個應用程式翻譯至您的語言</string>
     <string name="settings_contribute_title">參與貢獻，促進發展</string>

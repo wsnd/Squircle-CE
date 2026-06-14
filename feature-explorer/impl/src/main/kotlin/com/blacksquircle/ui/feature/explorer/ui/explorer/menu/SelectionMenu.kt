@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.blacksquircle.ui.ds.popupmenu.PopupMenu
 import com.blacksquircle.ui.ds.popupmenu.PopupMenuItem
 import com.blacksquircle.ui.feature.explorer.R
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceType
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceType
 import com.blacksquircle.ui.feature.explorer.ui.explorer.model.FileNode
 
 @Composable

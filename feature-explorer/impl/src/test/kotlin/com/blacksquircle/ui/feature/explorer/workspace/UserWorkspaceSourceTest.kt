@@ -19,7 +19,7 @@ package com.blacksquircle.ui.feature.explorer.workspace
 import com.blacksquircle.ui.core.database.dao.workspace.WorkspaceDao
 import com.blacksquircle.ui.core.database.entity.workspace.WorkspaceEntity
 import com.blacksquircle.ui.feature.explorer.data.workspace.UserWorkspaceSource
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceType
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceType
 import com.blacksquircle.ui.filesystem.local.LocalFilesystem
 import io.mockk.coEvery
 import io.mockk.mockk

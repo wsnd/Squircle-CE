@@ -18,11 +18,11 @@ package com.blacksquircle.ui.feature.explorer.data.workspace
 
 import com.blacksquircle.ui.core.database.dao.workspace.WorkspaceDao
 import com.blacksquircle.ui.feature.explorer.data.mapper.WorkspaceMapper
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceModel
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-internal class UserWorkspaceSource(workspaceDao: WorkspaceDao) : WorkspaceSource {
+class UserWorkspaceSource(workspaceDao: WorkspaceDao) : WorkspaceSource {
 
     override val workspaceFlow: Flow<List<WorkspaceModel>> =
         workspaceDao.flowAll().map { entities ->

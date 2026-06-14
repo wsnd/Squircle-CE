@@ -18,7 +18,7 @@ package com.blacksquircle.ui.feature.explorer.ui.task
 
 import androidx.compose.runtime.Immutable
 import com.blacksquircle.ui.core.mvi.ViewState
-import com.blacksquircle.ui.feature.explorer.domain.model.TaskType
+import com.blacksquircle.ui.feature.explorer.api.model.TaskType
 
 @Immutable
 internal data class TaskViewState(

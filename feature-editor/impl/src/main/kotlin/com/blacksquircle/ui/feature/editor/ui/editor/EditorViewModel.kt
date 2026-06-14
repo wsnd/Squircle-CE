@@ -40,6 +40,7 @@ import com.blacksquircle.ui.feature.editor.api.navigation.InsertColorRoute
 import com.blacksquircle.ui.feature.editor.domain.interactor.LanguageInteractor
 import com.blacksquircle.ui.feature.editor.domain.model.DocumentModel
 import com.blacksquircle.ui.feature.editor.domain.repository.DocumentRepository
+import com.blacksquircle.ui.feature.explorer.api.interactor.ExplorerInteractor
 import com.blacksquircle.ui.feature.editor.ui.editor.model.DocumentState
 import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorCommand
 import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorSettings
@@ -89,6 +90,7 @@ internal class EditorViewModel @Inject constructor(
     private val shortcutsInteractor: ShortcutsInteractor,
     private val terminalInteractor: TerminalInteractor,
     private val languageInteractor: LanguageInteractor,
+    private val explorerInteractor: ExplorerInteractor,
     private val navigator: Navigator,
 ) : ViewModel() {
 
@@ -127,13 +129,76 @@ internal class EditorViewModel @Inject constructor(
 
     fun onNewFileClicked() {
         viewModelScope.launch {
-            _viewEvent.send(EditorViewEvent.CreateFileContract)
+            // Navigate to CreateFile dialog (same as explorer)
+            navigator.navigate(com.blacksquircle.ui.feature.explorer.api.navigation.CreateFileRoute(isFolder = false))
+        }
+    }
+
+    fun onCreateFileResult(fileName: String) {
+        viewModelScope.launch {
+            try {
+                // Create a new untitled file in the editor
+                val document = DocumentModel(
+                    uuid = java.util.UUID.randomUUID().toString(),
+                    fileUri = "",
+                    filesystemUuid = "",
+                    displayName = fileName,
+                    language = com.blacksquircle.ui.feature.editor.data.model.LanguageScope.TEXT,
+                    modified = false,
+                    position = documents.size,
+                    scrollX = 0,
+                    scrollY = 0,
+                    selectionStart = 0,
+                    selectionEnd = 0,
+                    gitRepository = null,
+                )
+                
+                documents = documents + DocumentState(document)
+                selectedPosition = documents.size - 1
+                
+                _viewState.update {
+                    it.copy(
+                        documents = documents,
+                        selectedDocument = selectedPosition,
+                        isLoading = false,
+                    )
+                }
+                
+                _viewEvent.send(EditorViewEvent.ScrollToEnd)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewEvent.send(ViewEvent.Toast(e.message.orEmpty()))
+            }
         }
     }
 
     fun onOpenFileClicked() {
         viewModelScope.launch {
             _viewEvent.send(EditorViewEvent.OpenFileContract)
+        }
+    }
+
+    fun onOpenFolderClicked() {
+        viewModelScope.launch {
+            _viewEvent.send(EditorViewEvent.OpenFolderContract)
+        }
+    }
+
+    fun onFolderSelected(fileUri: Uri) {
+        viewModelScope.launch {
+            try {
+                val uuid = explorerInteractor.createWorkspace(fileUri)
+                settingsManager.workspace = uuid
+                val message = stringProvider.getString(UiR.string.common_selected)
+                _viewEvent.send(ViewEvent.Toast(message))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewEvent.send(ViewEvent.Toast(e.message.orEmpty()))
+            }
         }
     }
 
@@ -182,6 +247,56 @@ internal class EditorViewModel @Inject constructor(
             }
             val document = documents[selectedPosition].document
             _viewEvent.send(EditorViewEvent.SaveAsFileContract(document.displayName))
+        }
+    }
+
+    fun onSaveAllClicked() {
+        viewModelScope.launch {
+            try {
+                documents.forEachIndexed { index, state ->
+                    if (state.document.modified) {
+                        val content = if (index == selectedPosition) {
+                            state.content
+                        } else {
+                            documentRepository.loadDocument(state.document)
+                        }
+
+                        if (content != null) {
+                            val updatedDocument = state.document.copy(
+                                modified = false,
+                                scrollX = content.scrollX,
+                                scrollY = content.scrollY,
+                                selectionStart = content.selectionStart,
+                                selectionEnd = content.selectionEnd,
+                            )
+
+                            if (index == selectedPosition) {
+                                documents = documents.mapSelected { it.copy(document = updatedDocument) }
+                            } else {
+                                documents = documents.map { s ->
+                                    if (s.document.uuid == updatedDocument.uuid) {
+                                        s.copy(document = updatedDocument)
+                                    } else {
+                                        s
+                                    }
+                                }
+                            }
+
+                            documentRepository.saveDocument(updatedDocument, content)
+                        }
+                    }
+                }
+                _viewState.update {
+                    it.copy(documents = documents)
+                }
+                val message = stringProvider.getString(R.string.editor_toast_file_saved)
+                _viewEvent.send(ViewEvent.Toast(message))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewEvent.send(ViewEvent.Toast(e.message.orEmpty()))
+            }
         }
     }
 
@@ -237,6 +352,14 @@ internal class EditorViewModel @Inject constructor(
             it.copy(settings = settings)
         }
         settingsManager.readOnly = settings.readOnly
+    }
+
+    fun onAutoSaveClicked() {
+        settings = settings.copy(autoSaveFiles = !settings.autoSaveFiles)
+        _viewState.update {
+            it.copy(settings = settings)
+        }
+        settingsManager.autoSaveFiles = settings.autoSaveFiles
     }
 
     fun onCloseFileClicked() {
@@ -1625,6 +1748,7 @@ internal class EditorViewModel @Inject constructor(
         extendedKeyboard = settingsManager.extendedKeyboard,
         keyboardPreset = settingsManager.keyboardPreset.toMutableList().distinct(),
         softKeyboard = settingsManager.softKeyboard,
+        autoSaveFiles = settingsManager.autoSaveFiles,
         autoIndentation = settingsManager.autoIndentation,
         autoClosePairs = settingsManager.autoClosePairs,
         useSpacesInsteadOfTabs = settingsManager.useSpacesInsteadOfTabs,

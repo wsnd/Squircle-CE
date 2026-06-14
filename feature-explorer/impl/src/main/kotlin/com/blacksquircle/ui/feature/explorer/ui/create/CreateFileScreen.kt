@@ -35,20 +35,23 @@ import com.blacksquircle.ui.ds.checkbox.CheckBox
 import com.blacksquircle.ui.ds.dialog.AlertDialog
 import com.blacksquircle.ui.ds.textfield.TextField
 import com.blacksquircle.ui.feature.explorer.R
+import com.blacksquircle.ui.feature.explorer.api.navigation.CreateFileRoute
+import com.blacksquircle.ui.feature.explorer.api.navigation.KEY_CREATE_FILE
+import com.blacksquircle.ui.feature.explorer.api.navigation.KEY_CREATE_FOLDER
 import com.blacksquircle.ui.feature.explorer.internal.ExplorerComponent
-import com.blacksquircle.ui.feature.explorer.ui.explorer.KEY_CREATE_FILE
-import com.blacksquircle.ui.feature.explorer.ui.explorer.KEY_CREATE_FOLDER
 import com.blacksquircle.ui.filesystem.base.utils.isValidFileName
 import com.blacksquircle.ui.ds.R as UiR
 
 @Composable
 internal fun CreateFileScreen(
+    navArgs: CreateFileRoute,
     viewModel: CreateFileViewModel = daggerViewModel { context ->
         val component = ExplorerComponent.buildOrGet(context)
         CreateFileViewModel.Factory().also(component::inject)
     }
 ) {
     CreateFileScreen(
+        isFolderDefault = navArgs.isFolder,
         onConfirmClicked = { isFolder, fileName ->
             ResultEventBus.sendResult(
                 resultKey = if (isFolder) KEY_CREATE_FOLDER else KEY_CREATE_FILE,
@@ -62,11 +65,12 @@ internal fun CreateFileScreen(
 
 @Composable
 private fun CreateFileScreen(
+    isFolderDefault: Boolean = false,
     onConfirmClicked: (Boolean, String) -> Unit = { _, _ -> },
     onCancelClicked: () -> Unit = {}
 ) {
     var fileName by rememberSaveable { mutableStateOf("") }
-    var isFolder by rememberSaveable { mutableStateOf(false) }
+    var isFolder by rememberSaveable { mutableStateOf(isFolderDefault) }
     var isError by rememberSaveable { mutableStateOf(false) }
 
     AlertDialog(

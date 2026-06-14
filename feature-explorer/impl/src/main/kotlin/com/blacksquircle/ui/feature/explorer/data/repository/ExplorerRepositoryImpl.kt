@@ -25,17 +25,17 @@ import com.blacksquircle.ui.core.extensions.isStorageAccessGranted
 import com.blacksquircle.ui.core.provider.coroutine.DispatcherProvider
 import com.blacksquircle.ui.core.settings.SettingsManager
 import com.blacksquircle.ui.feature.explorer.api.factory.FilesystemFactory
-import com.blacksquircle.ui.feature.explorer.data.manager.TaskManager
+import com.blacksquircle.ui.feature.explorer.api.manager.TaskManager
 import com.blacksquircle.ui.feature.explorer.data.mapper.WorkspaceMapper
 import com.blacksquircle.ui.feature.explorer.data.workspace.DefaultWorkspaceSource
 import com.blacksquircle.ui.feature.explorer.data.workspace.ServerWorkspaceSource
 import com.blacksquircle.ui.feature.explorer.data.workspace.UserWorkspaceSource
 import com.blacksquircle.ui.feature.explorer.data.workspace.createLocalWorkspace
-import com.blacksquircle.ui.feature.explorer.domain.model.TaskStatus
-import com.blacksquircle.ui.feature.explorer.domain.model.TaskType
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceModel
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceType
-import com.blacksquircle.ui.feature.explorer.domain.repository.ExplorerRepository
+import com.blacksquircle.ui.feature.explorer.api.model.TaskStatus
+import com.blacksquircle.ui.feature.explorer.api.model.TaskType
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceModel
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceType
+import com.blacksquircle.ui.feature.explorer.api.repository.ExplorerRepository
 import com.blacksquircle.ui.feature.git.api.interactor.GitInteractor
 import com.blacksquircle.ui.filesystem.base.Filesystem
 import com.blacksquircle.ui.filesystem.base.exception.FileNotFoundException
@@ -52,7 +52,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
 
-internal class ExplorerRepositoryImpl(
+class ExplorerRepositoryImpl(
     private val dispatcherProvider: DispatcherProvider,
     private val settingsManager: SettingsManager,
     private val taskManager: TaskManager,
@@ -88,29 +88,31 @@ internal class ExplorerRepositoryImpl(
         _currentWorkspace = workspace
     }
 
-    override suspend fun createWorkspace(fileUri: Uri) {
-        withContext(dispatcherProvider.io()) {
+    override suspend fun createWorkspace(fileUri: Uri): String {
+        return withContext(dispatcherProvider.io()) {
             val absolutePath = fileUri.extractFilePath()
                 ?: throw FileNotFoundException(fileUri.toString())
             createWorkspace(absolutePath)
         }
     }
 
-    override suspend fun createWorkspace(filePath: String) {
-        withContext(dispatcherProvider.io()) {
+    override suspend fun createWorkspace(filePath: String): String {
+        return withContext(dispatcherProvider.io()) {
             val defaultLocation = FileModel(
                 fileUri = LocalFilesystem.LOCAL_SCHEME + filePath,
                 filesystemUuid = LocalFilesystem.LOCAL_UUID,
                 isDirectory = true,
             )
+            val uuid = UUID.randomUUID().toString()
             val workspace = WorkspaceModel(
-                uuid = UUID.randomUUID().toString(),
+                uuid = uuid,
                 name = defaultLocation.name,
                 type = WorkspaceType.CUSTOM,
                 defaultLocation = defaultLocation,
             )
             val workspaceEntity = WorkspaceMapper.toEntity(workspace)
             workspaceDao.insert(workspaceEntity)
+            uuid
         }
     }
 

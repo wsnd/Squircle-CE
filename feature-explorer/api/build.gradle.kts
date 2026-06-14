@@ -15,15 +15,21 @@
  */
 
 plugins {
-    id("com.blacksquircle.kotlin")
+    id("com.blacksquircle.feature")
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
+}
+
+android {
+    namespace = "com.blacksquircle.ui.feature.explorer.api"
 }
 
 dependencies {
 
     implementation(project(":core-navigation:api"))
 
-    compileOnly(libs.android.tools.platform)
+    implementation(libs.kotlinx.coroutines.core)
 
     api(project(":filesystems:filesystem-base"))
 }

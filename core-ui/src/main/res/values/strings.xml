@@ -27,6 +27,7 @@
     <string name="common_yes">Yes</string>
     <string name="common_no">No</string>
     <string name="common_menu">Menu</string>
+    <string name="common_settings">Settings</string>
     <string name="common_grant_access">Grant Access</string>
 
     <string name="common_untitled" translatable="false">untitled</string>

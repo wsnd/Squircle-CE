@@ -16,11 +16,18 @@
 
 package com.blacksquircle.ui.feature.explorer.ui.explorer.compose
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,6 +37,7 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,9 +70,12 @@ internal fun FileItem(
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {},
 ) {
+    val treeLineColor = SquircleTheme.colors.colorOutline.copy(alpha = 0.5f)
+    
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
+            .height(IntrinsicSize.Min)
             .background(
                 color = if (isSelected) {
                     SquircleTheme.colors.colorBackgroundTertiary
@@ -77,81 +88,102 @@ internal fun FileItem(
                 onLongClick = onLongClick,
                 debounce = false,
             )
-            .padding(
+    ) {
+        // Draw Tree Lines
+        repeat(fileNode.displayDepth) {
+            Box(
+                modifier = Modifier
+                    .width(HorizontalPadding)
+                    .fillMaxHeight()
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawLine(
+                        color = treeLineColor,
+                        start = Offset(size.width / 2, 0f),
+                        end = Offset(size.width / 2, size.height),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                }
+            }
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(
                 top = VerticalPadding,
                 bottom = VerticalPadding,
-                start = HorizontalPadding * fileNode.displayDepth,
                 end = HorizontalPadding,
             )
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .padding(horizontal = 4.dp)
-                .size(18.dp)
         ) {
-            when {
-                fileNode.isLoading -> {
-                    CircularProgress(
-                        circularProgressStyle = CircularProgressStyleDefaults.Primary,
-                        circularProgressSize = CircularProgressSizeDefaults.XS,
-                    )
-                }
-                fileNode.isError -> {
-                    Icon(
-                        painter = painterResource(UiR.drawable.ic_alert_circle),
-                        contentDescription = null,
-                        tint = SquircleTheme.colors.colorTextAndIconError,
-                    )
-                }
-                fileNode.isDirectory -> {
-                    Icon(
-                        painter = if (fileNode.isExpanded) {
-                            painterResource(UiR.drawable.ic_arrow_down)
-                        } else {
-                            painterResource(UiR.drawable.ic_arrow_right)
-                        },
-                        contentDescription = null,
-                        tint = SquircleTheme.colors.colorTextAndIconSecondary,
-                    )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .padding(horizontal = 4.dp)
+                    .size(18.dp)
+            ) {
+                when {
+                    fileNode.isLoading -> {
+                        CircularProgress(
+                            circularProgressStyle = CircularProgressStyleDefaults.Primary,
+                            circularProgressSize = CircularProgressSizeDefaults.XS,
+                        )
+                    }
+                    fileNode.isError -> {
+                        Icon(
+                            painter = painterResource(UiR.drawable.ic_alert_circle),
+                            contentDescription = null,
+                            tint = SquircleTheme.colors.colorTextAndIconError,
+                        )
+                    }
+                    fileNode.isDirectory -> {
+                        Icon(
+                            painter = if (fileNode.isExpanded) {
+                                painterResource(UiR.drawable.ic_arrow_down)
+                            } else {
+                                painterResource(UiR.drawable.ic_arrow_right)
+                            },
+                            contentDescription = null,
+                            tint = SquircleTheme.colors.colorTextAndIconSecondary,
+                        )
+                    }
                 }
             }
-        }
 
-        val icon = when {
-            fileNode.isDirectory -> UiR.drawable.ic_folder
-            fileNode.file.type == FileType.ARCHIVE -> UiR.drawable.ic_folder_zip
-            fileNode.file.type == FileType.IMAGE -> UiR.drawable.ic_file_image
-            fileNode.file.type == FileType.AUDIO -> UiR.drawable.ic_file_music
-            fileNode.file.type == FileType.VIDEO -> UiR.drawable.ic_file_video
-            else -> if (fileNode.displayIcon != -1) {
-                fileNode.displayIcon
-            } else {
-                UiR.drawable.ic_file
+            val icon = when {
+                fileNode.isDirectory -> UiR.drawable.ic_folder
+                fileNode.file.type == FileType.ARCHIVE -> UiR.drawable.ic_folder_zip
+                fileNode.file.type == FileType.IMAGE -> UiR.drawable.ic_file_image
+                fileNode.file.type == FileType.AUDIO -> UiR.drawable.ic_file_music
+                fileNode.file.type == FileType.VIDEO -> UiR.drawable.ic_file_video
+                else -> if (fileNode.displayIcon != -1) {
+                    fileNode.displayIcon
+                } else {
+                    UiR.drawable.ic_file
+                }
             }
-        }
-        val tint = when {
-            fileNode.isDirectory -> SquircleTheme.colors.colorTextAndIconAdditional
-            fileNode.file.type == FileType.ARCHIVE -> SquircleTheme.colors.colorTextAndIconAdditional
-            else -> SquircleTheme.colors.colorTextAndIconSecondary
-        }
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = null,
-            tint = tint.copy(alpha = if (fileNode.isHidden) 0.45f else 1f),
-            modifier = Modifier.size(24.dp)
-        )
+            val tint = when {
+                fileNode.isDirectory -> SquircleTheme.colors.colorTextAndIconAdditional
+                fileNode.file.type == FileType.ARCHIVE -> SquircleTheme.colors.colorTextAndIconAdditional
+                else -> SquircleTheme.colors.colorTextAndIconSecondary
+            }
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = null,
+                tint = tint.copy(alpha = if (fileNode.isHidden) 0.45f else 1f),
+                modifier = Modifier.size(24.dp)
+            )
 
-        Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(8.dp))
 
-        Text(
-            text = if (fileNode.isRoot) "/" else fileNode.displayName,
-            color = SquircleTheme.colors.colorTextAndIconSecondary,
-            style = SquircleTheme.typography.text16Regular,
-            maxLines = 1,
-            overflow = TextOverflow.Visible,
-            modifier = Modifier.widthIn(min = MinTextWidth)
-        )
+            Text(
+                text = fileNode.displayName.ifEmpty { "/" },
+                color = SquircleTheme.colors.colorTextAndIconSecondary,
+                style = SquircleTheme.typography.text16Regular,
+                maxLines = 1,
+                overflow = TextOverflow.Visible,
+                modifier = Modifier.widthIn(min = MinTextWidth)
+            )
+        }
     }
 }
 

@@ -33,6 +33,8 @@
     <string name="explorer_menu_selection_refresh">Refresh</string>
     <string name="explorer_menu_selection_clone">Clone</string>
     <string name="explorer_menu_selection_create">Create</string>
+    <string name="explorer_menu_create_file">New File</string>
+    <string name="explorer_menu_create_folder">New Folder</string>
 
     <string name="explorer_create_dialog_title">Create…</string>
     <string name="explorer_create_dialog_input_label">Enter file name</string>
@@ -136,5 +138,12 @@
     <string name="explorer_error_view_button_authenticate">Authenticate</string>
     <string name="explorer_error_view_message_password">Enter password to connect to remote server</string>
     <string name="explorer_error_view_message_passphrase">Enter passphrase to connect to remote server</string>
+
+    <!-- Search Panel -->
+    <string name="explorer_search_placeholder">Search</string>
+    <string name="explorer_search_match_case">Match Case</string>
+    <string name="explorer_search_use_regex">Use Regex</string>
+    <string name="explorer_search_no_results">No results found</string>
+    <string name="explorer_search_instructions">Enter search text to find files\n\nUse * and ? for wildcard patterns\nExample: *.kt, test*.java</string>
 
 </resources>

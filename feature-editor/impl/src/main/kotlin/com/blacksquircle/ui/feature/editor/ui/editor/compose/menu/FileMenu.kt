@@ -16,10 +16,13 @@
 
 package com.blacksquircle.ui.feature.editor.ui.editor.compose.menu
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.blacksquircle.ui.ds.checkbox.CheckBox
+import com.blacksquircle.ui.ds.divider.HorizontalDivider
 import com.blacksquircle.ui.ds.popupmenu.PopupMenu
 import com.blacksquircle.ui.ds.popupmenu.PopupMenuItem
 import com.blacksquircle.ui.feature.editor.R
@@ -28,13 +31,20 @@ import com.blacksquircle.ui.ds.R as UiR
 @Composable
 internal fun FileMenu(
     expanded: Boolean,
+    autoSave: Boolean,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     onNewFileClicked: () -> Unit = {},
     onOpenFileClicked: () -> Unit = {},
+    onOpenFolderClicked: () -> Unit = {},
     onSaveFileClicked: () -> Unit = {},
     onSaveFileAsClicked: () -> Unit = {},
+    onSaveAllClicked: () -> Unit = {},
+    onAutoSaveClicked: () -> Unit = {},
     onReloadFileClicked: () -> Unit = {},
+    onCloseFileClicked: () -> Unit = {},
+    onCloseOthersClicked: () -> Unit = {},
+    onCloseAllClicked: () -> Unit = {},
 ) {
     PopupMenu(
         expanded = expanded,
@@ -49,9 +59,15 @@ internal fun FileMenu(
         )
         PopupMenuItem(
             title = stringResource(R.string.editor_menu_file_open),
-            iconResId = UiR.drawable.ic_folder_open,
+            iconResId = UiR.drawable.ic_file,
             onClick = onOpenFileClicked,
         )
+        PopupMenuItem(
+            title = stringResource(R.string.editor_menu_file_open_folder),
+            iconResId = UiR.drawable.ic_folder_open,
+            onClick = onOpenFolderClicked,
+        )
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
         PopupMenuItem(
             title = stringResource(R.string.editor_menu_file_save),
             iconResId = UiR.drawable.ic_save,
@@ -63,9 +79,42 @@ internal fun FileMenu(
             onClick = onSaveFileAsClicked,
         )
         PopupMenuItem(
+            title = stringResource(R.string.editor_menu_file_save_all),
+            iconResId = UiR.drawable.ic_save,
+            onClick = onSaveAllClicked,
+        )
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+        PopupMenuItem(
+            title = stringResource(R.string.editor_menu_file_auto_save),
+            onClick = onAutoSaveClicked,
+            trailing = {
+                CheckBox(
+                    checked = autoSave,
+                    onClick = onAutoSaveClicked,
+                )
+            }
+        )
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+        PopupMenuItem(
             title = stringResource(R.string.editor_menu_file_reload),
             iconResId = UiR.drawable.ic_refresh,
             onClick = onReloadFileClicked,
+        )
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+        PopupMenuItem(
+            title = stringResource(R.string.editor_menu_file_close),
+            iconResId = UiR.drawable.ic_close,
+            onClick = onCloseFileClicked,
+        )
+        PopupMenuItem(
+            title = stringResource(R.string.editor_menu_file_close_others),
+            iconResId = UiR.drawable.ic_close,
+            onClick = onCloseOthersClicked,
+        )
+        PopupMenuItem(
+            title = stringResource(R.string.editor_menu_file_close_all),
+            iconResId = UiR.drawable.ic_close,
+            onClick = onCloseAllClicked,
         )
     }
 }

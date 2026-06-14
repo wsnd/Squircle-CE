@@ -17,7 +17,13 @@
 package com.blacksquircle.ui.feature.explorer.api.internal
 
 import com.blacksquircle.ui.feature.explorer.api.factory.FilesystemFactory
+import com.blacksquircle.ui.feature.explorer.api.interactor.ExplorerInteractor
+import com.blacksquircle.ui.feature.explorer.api.manager.TaskManager
+import com.blacksquircle.ui.feature.explorer.api.repository.ExplorerRepository
 
 interface ExplorerApi {
     fun provideFilesystemFactory(): FilesystemFactory
+    fun provideExplorerInteractor(): ExplorerInteractor
+    fun provideExplorerRepository(): ExplorerRepository
+    fun provideTaskManager(): TaskManager
 }

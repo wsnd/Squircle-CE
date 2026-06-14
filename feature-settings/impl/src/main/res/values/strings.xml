@@ -166,6 +166,28 @@
     <string name="settings_about_subtitle">Squircle CE is an open source project published under the Apache 2.0 license\n\nVersion: %1$s (%2$d)</string>
     <string name="settings_about_version_debug" translatable="false">-debug</string>
     <string name="settings_privacy_policy_title">Privacy Policy</string>
+    <string name="settings_open_source_licenses_title">Open Source Licenses</string>
+    <string name="settings_open_source_licenses_subtitle">View licenses for third-party libraries used in this app</string>
+    
+    <!-- Open Source Licenses Screen -->
+    <string name="licenses_app_title">Squircle CE</string>
+    <string name="licenses_app_description">This application is built with open source software. We\'re grateful to all the developers and contributors who made this possible.</string>
+    <string name="licenses_core_components">Core Components</string>
+    <string name="licenses_major_dependencies">Major Dependencies</string>
+    <string name="licenses_important_notice">Important Notice</string>
+    <string name="licenses_lgl_notice">This app uses Sora Editor under LGPL v2.1. This library is dynamically linked via Maven dependency. Under LGPL v2.1, you have the right to replace this library with a modified version. Build scripts are available in the project repository.</string>
+    <string name="licenses_apache_notice">The main application code remains under Apache License 2.0 and is not subject to LGPL\'s copyleft provisions.</string>
+    <string name="licenses_complete_info">Complete License Information</string>
+    <string name="licenses_complete_info_desc">For complete license information including all dependencies, please visit our GitHub repository.</string>
+    <string name="licenses_view_full">View Full Licenses on GitHub</string>
+    <string name="licenses_sora_editor" translatable="false">Sora Editor</string>
+    <string name="licenses_python_runtime" translatable="false">Python Runtime</string>
+    <string name="licenses_dagger" translatable="false">Dagger</string>
+    <string name="licenses_retrofit" translatable="false">Retrofit</string>
+    <string name="licenses_room" translatable="false">Room</string>
+    <string name="licenses_kotlin_coroutines" translatable="false">Kotlin Coroutines</string>
+    <string name="licenses_jgit" translatable="false">JGit</string>
+    <string name="licenses_timber" translatable="false">Timber</string>
 
     <string name="settings_category_contribute">Contribute</string>
     <string name="settings_translation_title">Translation Platform</string>

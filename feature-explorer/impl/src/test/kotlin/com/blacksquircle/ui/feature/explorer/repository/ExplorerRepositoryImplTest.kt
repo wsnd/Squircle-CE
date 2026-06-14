@@ -31,7 +31,7 @@ import com.blacksquircle.ui.feature.explorer.data.workspace.DefaultWorkspaceSour
 import com.blacksquircle.ui.feature.explorer.data.workspace.ServerWorkspaceSource
 import com.blacksquircle.ui.feature.explorer.data.workspace.UserWorkspaceSource
 import com.blacksquircle.ui.feature.explorer.defaultWorkspaces
-import com.blacksquircle.ui.feature.explorer.domain.model.TaskType
+import com.blacksquircle.ui.feature.explorer.api.model.TaskType
 import com.blacksquircle.ui.feature.git.api.interactor.GitInteractor
 import com.blacksquircle.ui.filesystem.base.Filesystem
 import com.blacksquircle.ui.filesystem.local.LocalFilesystem

@@ -38,6 +38,7 @@ internal data class EditorSettings(
     val extendedKeyboard: Boolean = false,
     val keyboardPreset: List<Char> = emptyList(),
     val softKeyboard: Boolean = false,
+    val autoSaveFiles: Boolean = false,
     val autoIndentation: Boolean = true,
     val autoClosePairs: Boolean = true,
     val useSpacesInsteadOfTabs: Boolean = true,

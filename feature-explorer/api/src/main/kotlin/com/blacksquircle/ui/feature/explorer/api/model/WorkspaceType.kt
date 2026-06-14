@@ -14,14 +14,20 @@
  * limitations under the License.
  */
 
-package com.blacksquircle.ui.feature.explorer.domain.model
+package com.blacksquircle.ui.feature.explorer.api.model
 
-import java.lang.Exception
+enum class WorkspaceType(val value: String) {
+    LOCAL("local"),
+    ROOT("root"),
+    CUSTOM("custom"),
+    SERVER("server");
 
-internal sealed class TaskStatus {
+    fun isLocal(): Boolean = this == LOCAL || this == CUSTOM
 
-    data object Pending : TaskStatus()
-    data class Progress(val count: Int, val totalCount: Int, val details: String) : TaskStatus()
-    data class Error(val exception: Exception) : TaskStatus()
-    data object Done : TaskStatus()
+    companion object {
+
+        fun of(value: String): WorkspaceType {
+            return entries.find { it.value == value } ?: LOCAL
+        }
+    }
 }

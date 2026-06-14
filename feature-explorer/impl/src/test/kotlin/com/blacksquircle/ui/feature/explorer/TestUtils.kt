@@ -18,8 +18,8 @@ package com.blacksquircle.ui.feature.explorer
 
 import com.blacksquircle.ui.feature.explorer.data.workspace.LOCAL_WORKSPACE_ID
 import com.blacksquircle.ui.feature.explorer.data.workspace.ROOT_WORKSPACE_ID
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceModel
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceType
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceModel
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceType
 import com.blacksquircle.ui.feature.explorer.ui.explorer.model.ErrorState
 import com.blacksquircle.ui.feature.explorer.ui.explorer.model.FileNode
 import com.blacksquircle.ui.filesystem.base.model.FileModel

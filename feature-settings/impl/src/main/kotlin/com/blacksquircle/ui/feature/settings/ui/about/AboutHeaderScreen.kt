@@ -42,10 +42,12 @@ import com.blacksquircle.ui.ds.scaffold.ScaffoldSuite
 import com.blacksquircle.ui.ds.toolbar.Toolbar
 import com.blacksquircle.ui.feature.settings.BuildConfig
 import com.blacksquircle.ui.feature.settings.R
+import com.blacksquircle.ui.feature.settings.api.navigation.OpenSourceLicensesRoute
 import com.blacksquircle.ui.feature.settings.data.applicationName
 import com.blacksquircle.ui.feature.settings.data.versionCode
 import com.blacksquircle.ui.feature.settings.data.versionName
 import com.blacksquircle.ui.feature.settings.internal.SettingsComponent
+import com.blacksquircle.ui.navigation.api.Navigator
 import com.blacksquircle.ui.ds.R as UiR
 
 private const val PRIVACY_POLICY_URL =
@@ -69,6 +71,9 @@ internal fun AboutHeaderScreen(
             }
             context.startActivity(intent)
         },
+        onOpenSourceLicensesClicked = {
+            viewModel.navigator.navigate(OpenSourceLicensesRoute)
+        },
         onTranslationClicked = {
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 data = TRANSLATION_PLATFORM_URL.toUri()
@@ -88,6 +93,7 @@ internal fun AboutHeaderScreen(
 private fun AboutHeaderScreen(
     onBackClicked: () -> Unit = {},
     onPrivacyClicked: () -> Unit = {},
+    onOpenSourceLicensesClicked: () -> Unit = {},
     onTranslationClicked: () -> Unit = {},
     onContributeClicked: () -> Unit = {},
 ) {
@@ -127,6 +133,11 @@ private fun AboutHeaderScreen(
             Preference(
                 title = stringResource(R.string.settings_privacy_policy_title),
                 onClick = onPrivacyClicked,
+            )
+            Preference(
+                title = stringResource(R.string.settings_open_source_licenses_title),
+                subtitle = stringResource(R.string.settings_open_source_licenses_subtitle),
+                onClick = onOpenSourceLicensesClicked,
             )
             HorizontalDivider()
             PreferenceGroup(

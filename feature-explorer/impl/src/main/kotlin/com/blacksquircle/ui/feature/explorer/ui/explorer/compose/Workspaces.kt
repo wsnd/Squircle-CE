@@ -32,8 +32,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import com.blacksquircle.ui.ds.navigationitem.NavigationItem
 import com.blacksquircle.ui.feature.explorer.R
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceModel
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceType
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceModel
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceType
 import com.blacksquircle.ui.ds.R as UiR
 
 @Composable
@@ -43,6 +43,7 @@ internal fun Workspaces(
     onWorkspaceClicked: (WorkspaceModel) -> Unit,
     onAddWorkspaceClicked: () -> Unit,
     onDeleteWorkspaceClicked: (WorkspaceModel) -> Unit,
+    onSettingsClicked: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val hapticFeedback = LocalHapticFeedback.current
@@ -50,24 +51,35 @@ internal fun Workspaces(
         modifier = modifier
             .width(64.dp)
             .fillMaxHeight()
-            .verticalScroll(rememberScrollState())
             .systemBarsPadding()
     ) {
-        workspaces.fastForEach { workspace ->
-            WorkspaceItem(
-                workspace = workspace,
-                selected = workspace == selectedWorkspace,
-                onClick = { onWorkspaceClicked(workspace) },
-                onLongClick = {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onDeleteWorkspaceClicked(workspace)
-                },
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+        ) {
+            workspaces.fastForEach { workspace ->
+                WorkspaceItem(
+                    workspace = workspace,
+                    selected = workspace == selectedWorkspace,
+                    onClick = { onWorkspaceClicked(workspace) },
+                    onLongClick = {
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onDeleteWorkspaceClicked(workspace)
+                    },
+                )
+            }
+            NavigationItem(
+                iconResId = UiR.drawable.ic_plus,
+                label = stringResource(R.string.explorer_workspace_button_add),
+                onClick = onAddWorkspaceClicked,
             )
         }
+
         NavigationItem(
-            iconResId = UiR.drawable.ic_plus,
-            label = stringResource(R.string.explorer_workspace_button_add),
-            onClick = onAddWorkspaceClicked,
+            iconResId = UiR.drawable.ic_settings,
+            label = stringResource(UiR.string.common_settings),
+            onClick = onSettingsClicked,
         )
     }
 }

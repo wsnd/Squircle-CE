@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-package com.blacksquircle.ui.feature.explorer.domain.repository
+package com.blacksquircle.ui.feature.explorer.api.repository
 
 import android.net.Uri
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceModel
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceModel
 import com.blacksquircle.ui.filesystem.base.model.FileModel
 import kotlinx.coroutines.flow.Flow
 
-internal interface ExplorerRepository {
+interface ExplorerRepository {
 
     val currentWorkspace: WorkspaceModel
 
     suspend fun loadWorkspaces(): Flow<List<WorkspaceModel>>
     suspend fun selectWorkspace(workspace: WorkspaceModel)
-    suspend fun createWorkspace(fileUri: Uri)
-    suspend fun createWorkspace(filePath: String)
+    suspend fun createWorkspace(fileUri: Uri): String
+    suspend fun createWorkspace(filePath: String): String
     suspend fun deleteWorkspace(uuid: String)
 
     suspend fun listFiles(parent: FileModel): List<FileModel>

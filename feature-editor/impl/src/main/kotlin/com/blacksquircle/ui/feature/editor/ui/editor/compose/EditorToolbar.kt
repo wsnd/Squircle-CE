@@ -45,8 +45,10 @@ internal fun EditorToolbar(
     onDrawerClicked: () -> Unit = {},
     onNewFileClicked: () -> Unit = {},
     onOpenFileClicked: () -> Unit = {},
+    onOpenFolderClicked: () -> Unit = {},
     onSaveFileClicked: () -> Unit = {},
     onSaveFileAsClicked: () -> Unit = {},
+    onSaveAllClicked: () -> Unit = {},
     onReloadFileClicked: () -> Unit = {},
     onRunPythonClicked: () -> Unit = {},
     onCutClicked: () -> Unit = {},
@@ -67,7 +69,11 @@ internal fun EditorToolbar(
     onPushClicked: () -> Unit = {},
     onCheckoutClicked: () -> Unit = {},
     onTerminalClicked: () -> Unit = {},
-    onSettingsClicked: () -> Unit = {},
+    onCloseFileClicked: () -> Unit = {},
+    onCloseOthersClicked: () -> Unit = {},
+    onCloseAllClicked: () -> Unit = {},
+    autoSave: Boolean = false,
+    onAutoSaveClicked: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     var menuType by rememberSaveable {
@@ -85,12 +91,19 @@ internal fun EditorToolbar(
                 anchor = {
                     FileMenu(
                         expanded = menuType == MenuType.FILE,
+                        autoSave = autoSave,
                         onDismiss = { menuType = null },
                         onNewFileClicked = { menuType = null; onNewFileClicked() },
                         onOpenFileClicked = { menuType = null; onOpenFileClicked() },
+                        onOpenFolderClicked = { menuType = null; onOpenFolderClicked() },
                         onSaveFileClicked = { menuType = null; onSaveFileClicked() },
                         onSaveFileAsClicked = { menuType = null; onSaveFileAsClicked() },
+                        onSaveAllClicked = { menuType = null; onSaveAllClicked() },
+                        onAutoSaveClicked = onAutoSaveClicked,
                         onReloadFileClicked = { menuType = null; onReloadFileClicked() },
+                        onCloseFileClicked = { menuType = null; onCloseFileClicked() },
+                        onCloseOthersClicked = { menuType = null; onCloseOthersClicked() },
+                        onCloseAllClicked = { menuType = null; onCloseAllClicked() },
                     )
                 }
             )
@@ -102,7 +115,7 @@ internal fun EditorToolbar(
                         focusManager.clearFocus(force = true)
                         onRunPythonClicked()
                     },
-                    contentDescription = "Run Python code"
+                    contentDescription = stringResource(R.string.editor_menu_run_python)
                 )
             }
 
@@ -156,11 +169,6 @@ internal fun EditorToolbar(
                             focusManager.clearFocus(force = true)
                             menuType = null
                             onTerminalClicked()
-                        },
-                        onSettingsClicked = {
-                            focusManager.clearFocus(force = true)
-                            menuType = null
-                            onSettingsClicked()
                         },
                     )
                     ToolsMenu(

@@ -23,8 +23,8 @@ import com.blacksquircle.ui.core.extensions.map
 import com.blacksquircle.ui.core.extensions.onEach
 import com.blacksquircle.ui.core.mvi.ViewEvent
 import com.blacksquircle.ui.feature.explorer.api.navigation.NotificationDeniedRoute
-import com.blacksquircle.ui.feature.explorer.data.manager.TaskManager
-import com.blacksquircle.ui.feature.explorer.domain.model.TaskStatus
+import com.blacksquircle.ui.feature.explorer.api.manager.TaskManager
+import com.blacksquircle.ui.feature.explorer.api.model.TaskStatus
 import com.blacksquircle.ui.feature.explorer.ui.explorer.ExplorerViewEvent
 import com.blacksquircle.ui.navigation.api.Navigator
 import dagger.assisted.Assisted

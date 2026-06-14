@@ -17,13 +17,13 @@
 package com.blacksquircle.ui.feature.explorer.data.workspace
 
 import android.content.Context
-import com.blacksquircle.ui.feature.explorer.domain.model.WorkspaceModel
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceModel
 import com.scottyab.rootbeer.RootBeer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-internal class DefaultWorkspaceSource(
+class DefaultWorkspaceSource(
     private val rootBeer: RootBeer,
     private val context: Context,
 ) : WorkspaceSource {

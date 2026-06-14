@@ -19,14 +19,19 @@
 
     <string name="editor_menu_file">File</string>
     <string name="editor_menu_file_new">New</string>
-    <string name="editor_menu_file_open">Open</string>
+    <string name="editor_menu_file_open">Open File</string>
+    <string name="editor_menu_file_open_folder">Open Folder</string>
     <string name="editor_menu_file_save">Save</string>
     <string name="editor_menu_file_save_as">Save As</string>
+    <string name="editor_menu_file_save_all">Save All</string>
+    <string name="editor_menu_file_auto_save">Auto Save</string>
     <string name="editor_menu_file_reload">Reload</string>
     <string name="editor_menu_file_close">Close</string>
     <string name="editor_menu_file_close_others">Close Others</string>
     <string name="editor_menu_file_close_all">Close All</string>
     <string name="editor_menu_file_read_only">Read Only</string>
+
+    <string name="editor_menu_run_python">Run Python Code</string>
 
     <string name="editor_menu_edit">Edit</string>
     <string name="editor_menu_edit_select_line">Select Line</string>

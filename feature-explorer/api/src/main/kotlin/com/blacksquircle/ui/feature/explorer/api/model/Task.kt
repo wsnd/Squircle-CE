@@ -14,22 +14,15 @@
  * limitations under the License.
  */
 
-package com.blacksquircle.ui.feature.explorer.domain.model
+package com.blacksquircle.ui.feature.explorer.api.model
 
-internal enum class TaskType(val value: String) {
-    CREATE("create"),
-    RENAME("rename"),
-    DELETE("delete"),
-    MOVE("move"),
-    COPY("copy"),
-    COMPRESS("compress"),
-    EXTRACT("extract"),
-    CLONE("clone");
+data class Task(
+    val id: String,
+    val type: TaskType,
+    val status: TaskStatus = TaskStatus.Pending,
+    val timestamp: Long = System.currentTimeMillis(),
+) {
 
-    companion object {
-
-        fun of(value: String): TaskType {
-            return entries.find { it.value == value } ?: CREATE
-        }
-    }
+    val isFinished: Boolean
+        get() = status is TaskStatus.Done || status is TaskStatus.Error
 }

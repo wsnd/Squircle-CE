@@ -25,8 +25,10 @@ import com.blacksquircle.ui.feature.settings.api.navigation.EditorHeaderRoute
 import com.blacksquircle.ui.feature.settings.api.navigation.FilesHeaderRoute
 import com.blacksquircle.ui.feature.settings.api.navigation.GitHeaderRoute
 import com.blacksquircle.ui.feature.settings.api.navigation.HeaderListRoute
+import com.blacksquircle.ui.feature.settings.api.navigation.OpenSourceLicensesRoute
 import com.blacksquircle.ui.feature.settings.api.navigation.TerminalHeaderRoute
 import com.blacksquircle.ui.feature.settings.ui.about.AboutHeaderScreen
+import com.blacksquircle.ui.feature.settings.ui.about.OpenSourceLicensesScreen
 import com.blacksquircle.ui.feature.settings.ui.application.AppHeaderScreen
 import com.blacksquircle.ui.feature.settings.ui.codestyle.CodeHeaderScreen
 import com.blacksquircle.ui.feature.settings.ui.editor.EditorHeaderScreen
@@ -62,6 +64,9 @@ internal class SettingsEntryProvider : EntryProvider {
         }
         entry<AboutHeaderRoute> {
             AboutHeaderScreen()
+        }
+        entry<OpenSourceLicensesRoute> {
+            OpenSourceLicensesScreen()
         }
     }
 }

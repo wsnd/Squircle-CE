@@ -22,7 +22,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.blacksquircle.ui.core.mvi.ViewEvent
 import com.blacksquircle.ui.feature.explorer.api.navigation.LocalWorkspaceRoute
-import com.blacksquircle.ui.feature.explorer.domain.repository.ExplorerRepository
+import com.blacksquircle.ui.feature.explorer.api.repository.ExplorerRepository
 import com.blacksquircle.ui.feature.servers.api.navigation.ServerDetailsRoute
 import com.blacksquircle.ui.navigation.api.Navigator
 import kotlinx.coroutines.CancellationException
@@ -55,7 +55,12 @@ internal class AddWorkspaceViewModel @Inject constructor(
     fun onFolderSelected(fileUri: Uri) {
         viewModelScope.launch {
             try {
-                explorerRepository.createWorkspace(fileUri)
+                val uuid = explorerRepository.createWorkspace(fileUri)
+                // We don't have the workspace model yet, so we just set the UUID
+                // The selectWorkspace logic will handle it if we pass a dummy model with correct UUID
+                explorerRepository.selectWorkspace(
+                    explorerRepository.currentWorkspace.copy(uuid = uuid)
+                )
                 navigator.goBack()
             } catch (e: CancellationException) {
                 throw e

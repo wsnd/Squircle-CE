@@ -140,10 +140,16 @@
     <string name="explorer_error_view_message_passphrase">Enter passphrase to connect to remote server</string>
 
     <!-- Search Panel -->
+    <string name="explorer_search_title">Search</string>
     <string name="explorer_search_placeholder">Search</string>
     <string name="explorer_search_match_case">Match Case</string>
     <string name="explorer_search_use_regex">Use Regex</string>
     <string name="explorer_search_no_results">No results found</string>
     <string name="explorer_search_instructions">Enter search text to find files\n\nUse * and ? for wildcard patterns\nExample: *.kt, test*.java</string>
+    <string name="explorer_search_include_placeholder">*.kt,*.java</string>
+    <string name="explorer_search_exclude_placeholder">build/,*.class</string>
+    <string name="explorer_search_match_case_label">Aa</string>
+    <string name="explorer_search_regex_label">.*</string>
+    <string name="explorer_search_match_count">%1$d matches</string>
 
 </resources>

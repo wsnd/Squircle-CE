@@ -112,4 +112,17 @@
     <string name="explorer_error_view_button_authenticate">认证</string>
     <string name="explorer_error_view_message_password">请输入密码以连接到远程服务器</string>
     <string name="explorer_error_view_message_passphrase">请输入密码以连接到远程服务器</string>
+
+    <!-- 搜索面板 -->
+    <string name="explorer_search_title">搜索</string>
+    <string name="explorer_search_placeholder">搜索</string>
+    <string name="explorer_search_match_case">区分大小写</string>
+    <string name="explorer_search_use_regex">使用正则</string>
+    <string name="explorer_search_no_results">未找到结果</string>
+    <string name="explorer_search_instructions">输入搜索文本查找文件\n\n使用 * 和 ? 作为通配符\n例如: *.kt, test*.java</string>
+    <string name="explorer_search_include_placeholder">*.kt,*.java</string>
+    <string name="explorer_search_exclude_placeholder">build/,*.class</string>
+    <string name="explorer_search_match_case_label">Aa</string>
+    <string name="explorer_search_regex_label">.*</string>
+    <string name="explorer_search_match_count">%1$d 个匹配</string>
 </resources>

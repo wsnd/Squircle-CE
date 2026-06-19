@@ -41,15 +41,19 @@ import com.blacksquircle.ui.feature.editor.domain.interactor.LanguageInteractor
 import com.blacksquircle.ui.feature.editor.domain.model.DocumentModel
 import com.blacksquircle.ui.feature.editor.domain.repository.DocumentRepository
 import com.blacksquircle.ui.feature.explorer.api.interactor.ExplorerInteractor
+import com.blacksquircle.ui.feature.editor.domain.GlobalSearchUseCase
 import com.blacksquircle.ui.feature.editor.ui.editor.model.DocumentState
 import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorCommand
 import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorSettings
 import com.blacksquircle.ui.feature.editor.ui.editor.model.ErrorAction
 import com.blacksquircle.ui.feature.editor.ui.editor.model.ErrorState
+import com.blacksquircle.ui.feature.editor.ui.editor.model.GlobalSearchState
 import com.blacksquircle.ui.feature.editor.ui.editor.model.SearchState
 import com.blacksquircle.ui.feature.editor.ui.editor.view.selectionEnd
 import com.blacksquircle.ui.feature.editor.ui.editor.view.selectionStart
+import com.blacksquircle.ui.feature.explorer.api.factory.FilesystemFactory
 import com.blacksquircle.ui.feature.explorer.api.navigation.StorageDeniedRoute
+import com.blacksquircle.ui.feature.explorer.api.repository.ExplorerRepository
 import com.blacksquircle.ui.feature.fonts.api.interactor.FontsInteractor
 import com.blacksquircle.ui.feature.git.api.interactor.GitInteractor
 import com.blacksquircle.ui.feature.git.api.navigation.CheckoutRoute
@@ -91,6 +95,8 @@ internal class EditorViewModel @Inject constructor(
     private val terminalInteractor: TerminalInteractor,
     private val languageInteractor: LanguageInteractor,
     private val explorerInteractor: ExplorerInteractor,
+    private val explorerRepository: ExplorerRepository,
+    private val filesystemFactory: FilesystemFactory,
     private val navigator: Navigator,
 ) : ViewModel() {
 
@@ -100,10 +106,13 @@ internal class EditorViewModel @Inject constructor(
     private val _viewEvent = Channel<ViewEvent>(Channel.BUFFERED)
     val viewEvent: Flow<ViewEvent> = _viewEvent.receiveAsFlow()
 
+    private val globalSearchUseCase = GlobalSearchUseCase(filesystemFactory)
+
     private var documents = emptyList<DocumentState>()
     private var selectedPosition = -1
     private var settings = EditorSettings()
     private var currentJob: Job? = null
+    private var globalSearchJob: Job? = null
 
     init {
         loadDocuments()
@@ -1731,6 +1740,329 @@ internal class EditorViewModel @Inject constructor(
             state
         }
     }
+
+    // ==================== Global Search ====================
+
+    fun onGlobalSearchQueryChanged(query: String) {
+        _viewState.update {
+            it.copy(globalSearchState = it.globalSearchState.copy(query = query))
+        }
+    }
+
+    fun onGlobalSearchReplaceTextChanged(text: String) {
+        _viewState.update {
+            it.copy(globalSearchState = it.globalSearchState.copy(replaceText = text))
+        }
+    }
+
+    fun onGlobalSearchToggleReplace() {
+        _viewState.update {
+            val current = it.globalSearchState
+            it.copy(globalSearchState = current.copy(replaceShown = !current.replaceShown))
+        }
+    }
+
+    fun onGlobalSearchRegexClicked() {
+        _viewState.update {
+            val current = it.globalSearchState
+            it.copy(globalSearchState = current.copy(regex = !current.regex))
+        }
+    }
+
+    fun onGlobalSearchMatchCaseClicked() {
+        _viewState.update {
+            val current = it.globalSearchState
+            it.copy(globalSearchState = current.copy(matchCase = !current.matchCase))
+        }
+    }
+
+    fun onGlobalSearchWordsOnlyClicked() {
+        _viewState.update {
+            val current = it.globalSearchState
+            it.copy(globalSearchState = current.copy(wordsOnly = !current.wordsOnly))
+        }
+    }
+
+    fun onGlobalSearchSubmitted() {
+        globalSearchJob?.cancel()
+        globalSearchJob = viewModelScope.launch {
+            try {
+                val currentState = _viewState.value.globalSearchState
+                if (currentState.query.isBlank()) return@launch
+
+                _viewState.update {
+                    it.copy(globalSearchState = currentState.copy(isSearching = true, results = emptyList()))
+                }
+
+                // 使用当前打开文件所在目录作为搜索根目录（VSCode 风格）
+                val rootDir = getSearchRootDirectory()
+                val params = GlobalSearchUseCase.SearchParams(
+                    query = currentState.query,
+                    matchCase = currentState.matchCase,
+                    useRegex = currentState.regex,
+                    wordsOnly = currentState.wordsOnly,
+                )
+
+                val results = globalSearchUseCase.search(rootDir, params)
+                ensureActive()
+
+                val totalMatches = results.sumOf { it.matchCount }
+                val totalFiles = results.size
+
+                _viewState.update {
+                    it.copy(
+                        globalSearchState = it.globalSearchState.copy(
+                            isSearching = false,
+                            results = results,
+                            totalMatchCount = totalMatches,
+                            totalFileCount = totalFiles,
+                        )
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewState.update {
+                    it.copy(
+                        globalSearchState = it.globalSearchState.copy(isSearching = false)
+                    )
+                }
+                _viewEvent.send(ViewEvent.Toast(e.message.orEmpty()))
+            }
+        }
+    }
+
+    fun onGlobalSearchReplaceAll() {
+        val currentState = _viewState.value.globalSearchState
+        if (currentState.query.isBlank() || currentState.results.isEmpty()) return
+
+        globalSearchJob?.cancel()
+        globalSearchJob = viewModelScope.launch {
+            try {
+                _viewState.update {
+                    it.copy(globalSearchState = currentState.copy(isSearching = true))
+                }
+
+                val params = GlobalSearchUseCase.SearchParams(
+                    query = currentState.query,
+                    matchCase = currentState.matchCase,
+                    useRegex = currentState.regex,
+                    wordsOnly = currentState.wordsOnly,
+                )
+
+                val replaceResults = globalSearchUseCase.replaceAll(
+                    fileResults = currentState.results,
+                    replaceText = currentState.replaceText,
+                    params = params,
+                )
+                ensureActive()
+
+                val totalReplaced = replaceResults.sumOf { it.replacedCount }
+                val failedFiles = replaceResults.filter { it.error != null }
+
+                // 刷新已打开且被替换过的文件内容
+                val replacedFileUris = replaceResults
+                    .filter { it.replacedCount > 0 }
+                    .map { it.file.fileUri }
+                    .toSet()
+                if (replacedFileUris.isNotEmpty()) {
+                    refreshOpenDocuments(replacedFileUris)
+                }
+
+                // 替换完成后重新搜索以更新结果
+                val rootDir = getSearchRootDirectory()
+                val newResults = globalSearchUseCase.search(rootDir, params)
+                ensureActive()
+
+                val totalMatches = newResults.sumOf { it.matchCount }
+                val totalFiles = newResults.size
+
+                _viewState.update {
+                    it.copy(
+                        globalSearchState = it.globalSearchState.copy(
+                            isSearching = false,
+                            results = newResults,
+                            totalMatchCount = totalMatches,
+                            totalFileCount = totalFiles,
+                        )
+                    )
+                }
+
+                val message = if (failedFiles.isNotEmpty()) {
+                    stringProvider.getString(
+                        R.string.editor_global_search_toast_replaced_failed,
+                        totalReplaced,
+                        failedFiles.size
+                    )
+                } else {
+                    stringProvider.getString(R.string.editor_global_search_toast_replaced, totalReplaced)
+                }
+                _viewEvent.send(ViewEvent.Toast(message))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewState.update {
+                    it.copy(
+                        globalSearchState = it.globalSearchState.copy(isSearching = false)
+                    )
+                }
+                _viewEvent.send(ViewEvent.Toast(e.message.orEmpty()))
+            }
+        }
+    }
+
+    fun onGlobalSearchReplaceResult(result: GlobalSearchUseCase.FileSearchResult) {
+        val currentState = _viewState.value.globalSearchState
+        if (currentState.query.isBlank() || currentState.replaceText.isBlank()) return
+
+        globalSearchJob?.cancel()
+        globalSearchJob = viewModelScope.launch {
+            try {
+                _viewState.update {
+                    it.copy(globalSearchState = currentState.copy(isSearching = true))
+                }
+
+                val params = GlobalSearchUseCase.SearchParams(
+                    query = currentState.query,
+                    matchCase = currentState.matchCase,
+                    useRegex = currentState.regex,
+                    wordsOnly = currentState.wordsOnly,
+                )
+
+                val replaceResult = globalSearchUseCase.replaceSingle(
+                    fileResult = result,
+                    replaceText = currentState.replaceText,
+                    params = params,
+                )
+                ensureActive()
+
+                val replacedFileUris = if (replaceResult.replacedCount > 0) setOf(result.file.fileUri) else emptySet()
+                if (replacedFileUris.isNotEmpty()) {
+                    refreshOpenDocuments(replacedFileUris)
+                }
+
+                // 重新搜索以更新结果
+                val rootDir = getSearchRootDirectory()
+                val newResults = globalSearchUseCase.search(rootDir, params)
+                ensureActive()
+
+                val totalMatches = newResults.sumOf { it.matchCount }
+                val totalFiles = newResults.size
+
+                _viewState.update {
+                    it.copy(
+                        globalSearchState = it.globalSearchState.copy(
+                            isSearching = false,
+                            results = newResults,
+                            totalMatchCount = totalMatches,
+                            totalFileCount = totalFiles,
+                        )
+                    )
+                }
+
+                val msg = if (replaceResult.replacedCount > 0) {
+                    stringProvider.getString(R.string.editor_global_search_toast_replaced, replaceResult.replacedCount)
+                } else {
+                    replaceResult.error ?: stringProvider.getString(R.string.editor_global_search_toast_no_replacements)
+                }
+                _viewEvent.send(ViewEvent.Toast(msg))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewState.update {
+                    it.copy(
+                        globalSearchState = it.globalSearchState.copy(isSearching = false)
+                    )
+                }
+                _viewEvent.send(ViewEvent.Toast(e.message.orEmpty()))
+            }
+        }
+    }
+
+    fun onGlobalSearchResultClicked(result: GlobalSearchUseCase.FileSearchResult) {
+        // Open the file and navigate to the first match
+        viewModelScope.launch {
+            try {
+                // Open file via the existing file open flow
+                onFileOpened(result.file)
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+            }
+        }
+    }
+
+    fun onGlobalSearchClearClicked() {
+        globalSearchJob?.cancel()
+        _viewState.update {
+            it.copy(globalSearchState = GlobalSearchState())
+        }
+    }
+
+    /**
+     * 刷新已打开且被替换过的文档内容。
+     * 清除缓存内容并重新从磁盘加载，使编辑器立即显示替换后的内容。
+     */
+    private suspend fun refreshOpenDocuments(replacedFileUris: Set<String>) {
+        val openIndices = documents.mapIndexedNotNull { index, state ->
+            if (state.document.fileUri in replacedFileUris) index else null
+        }
+        if (openIndices.isEmpty()) return
+
+        for (index in openIndices) {
+            val document = documents[index].document
+            documents = documents.mapIndexed { i, state ->
+                if (i == index) {
+                    state.copy(
+                        document = document.copy(modified = false),
+                        content = null,
+                        canUndo = false,
+                        canRedo = false,
+                    )
+                } else {
+                    state
+                }
+            }
+            documentRepository.refreshDocument(document)
+        }
+
+        _viewState.update {
+            it.copy(documents = documents)
+        }
+
+        // 如果当前选中的文件是被替换的文件之一，重新加载它
+        if (selectedPosition in openIndices) {
+            val selectedDoc = documents[selectedPosition].document
+            loadDocument(selectedDoc, fromUser = false)
+        }
+    }
+
+    /**
+     * 获取搜索根目录：优先使用当前打开文件所在的父目录，如果没有则回退到工作区默认位置。
+     * VSCode 行为：在当前打开的项目/文件所在目录中搜索。
+     */
+    private fun getSearchRootDirectory(): FileModel {
+        val currentDoc = _viewState.value.currentDocument
+        return if (currentDoc != null) {
+            // 从当前打开的文件路径中提取父目录
+            val fileUri = currentDoc.document.fileUri
+            val scheme = fileUri.substringBefore("://")
+            val path = fileUri.substringAfter("://")
+            val parentPath = path.substringBeforeLast(File.separator)
+            FileModel(
+                fileUri = "$scheme://$parentPath",
+                filesystemUuid = currentDoc.document.filesystemUuid,
+                isDirectory = true,
+            )
+        } else {
+            // 没有打开文件，回退到工作区默认位置
+            explorerRepository.currentWorkspace.defaultLocation
+        }
+    }
+
+    // ==================== End Global Search ====================
 
     private suspend fun loadSettings(): EditorSettings = EditorSettings(
         fontSize = settingsManager.fontSize.toFloat(),

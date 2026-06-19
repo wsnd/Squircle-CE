@@ -85,4 +85,25 @@
     <string name="editor_exit_dialog_title">Exit</string>
     <string name="editor_exit_dialog_message">Are you sure you want to exit? All changes will be saved into a cache</string>
 
+    <!-- Global Search -->
+    <string name="editor_global_search_title">SEARCH</string>
+    <string name="editor_global_search_placeholder">Search</string>
+    <string name="editor_global_search_replace_placeholder">Replace</string>
+    <string name="editor_global_search_button_search">Search</string>
+    <string name="editor_global_search_button_replace_all">Replace All</string>
+    <string name="editor_global_search_button_replace">Replace</string>
+    <string name="editor_global_search_button_clear">Clear</string>
+    <string name="editor_global_search_searching">Searching…</string>
+    <string name="editor_global_search_results_summary">%1$d matches, %2$d files</string>
+    <string name="editor_global_search_no_results">No results found</string>
+    <string name="editor_global_search_no_results_detail">No results for \"%1$s\"</string>
+    <string name="editor_global_search_empty_hint">Enter search query to start searching</string>
+    <string name="editor_global_search_empty_subtitle">Search all files in the current workspace</string>
+    <string name="editor_global_search_file_matches">%1$d matches</string>
+    <string name="editor_global_search_toast_replaced">Replaced %1$d occurrence(s)</string>
+    <string name="editor_global_search_toast_replaced_failed">Replaced %1$d occurrence(s), %2$d file(s) failed</string>
+    <string name="editor_global_search_toast_no_replacements">No replacements made</string>
+    <string name="editor_global_search_error_unknown">Unknown error</string>
+    <string name="editor_global_search_error_invalid_pattern">Invalid search pattern</string>
+
 </resources>

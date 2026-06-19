@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,8 +61,29 @@ internal fun SearchPanel(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
     ) {
+        // Title header (matching ExplorerToolbar style)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            androidx.compose.material.Text(
+                text = stringResource(R.string.explorer_search_title),
+                style = SquircleTheme.typography.text12Regular,
+                fontWeight = FontWeight.Bold,
+                color = SquircleTheme.colors.colorTextAndIconSecondary,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+        ) {
         // Search input field
         TextField(
             inputText = searchQuery,
@@ -91,7 +113,7 @@ internal fun SearchPanel(
             TextField(
                 inputText = includePattern,
                 onInputChanged = { includePattern = it },
-                placeholderText = "*.kt,*.java",
+                placeholderText = stringResource(R.string.explorer_search_include_placeholder),
                 modifier = Modifier.weight(1f)
             )
 
@@ -99,7 +121,7 @@ internal fun SearchPanel(
             TextField(
                 inputText = excludePattern,
                 onInputChanged = { excludePattern = it },
-                placeholderText = "build/,*.class",
+                placeholderText = stringResource(R.string.explorer_search_exclude_placeholder),
                 modifier = Modifier.weight(1f)
             )
         }
@@ -123,7 +145,7 @@ internal fun SearchPanel(
                 )
                 Spacer(Modifier.width(4.dp))
                 androidx.compose.material.Text(
-                    text = "Aa",
+                    text = stringResource(R.string.explorer_search_match_case_label),
                     style = SquircleTheme.typography.text14Regular,
                     color = if (matchCase) SquircleTheme.colors.colorTextAndIconPrimary else Color.Gray
                 )
@@ -141,7 +163,7 @@ internal fun SearchPanel(
                 )
                 Spacer(Modifier.width(4.dp))
                 androidx.compose.material.Text(
-                    text = ".*",
+                    text = stringResource(R.string.explorer_search_regex_label),
                     style = SquircleTheme.typography.text14Regular,
                     color = if (useRegex) SquircleTheme.colors.colorTextAndIconPrimary else Color.Gray
                 )
@@ -197,6 +219,7 @@ internal fun SearchPanel(
                 )
             }
         }
+        }
     }
 }
 
@@ -237,7 +260,7 @@ private fun SearchResultItem(
         if (result.matchCount > 0) {
             Spacer(Modifier.height(4.dp))
             androidx.compose.material.Text(
-                text = "${result.matchCount} matches",
+                text = stringResource(R.string.explorer_search_match_count, result.matchCount),
                 style = SquircleTheme.typography.text12Regular,
                 color = Color.Gray
             )

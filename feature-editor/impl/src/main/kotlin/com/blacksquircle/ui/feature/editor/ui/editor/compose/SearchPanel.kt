@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,6 +38,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.PreviewLightDark
@@ -68,7 +74,8 @@ internal fun SearchPanel(
     onReplaceMatchClicked: () -> Unit = {},
     onReplaceAllClicked: () -> Unit = {},
 ) {
-    val focusRequester = remember { FocusRequester() }
+    val findFocusRequester = remember { FocusRequester() }
+    val replaceFocusRequester = remember { FocusRequester() }
 
     Column(modifier.padding(vertical = 8.dp)) {
         Row(Modifier.padding(horizontal = 8.dp)) {
@@ -92,10 +99,15 @@ internal fun SearchPanel(
                     onInputChanged = onFindTextChanged,
                     placeholderText = stringResource(R.string.editor_menu_find),
                     keyboardOptions = KeyboardOptions(
-                        imeAction = if (searchState.replaceShown) {
-                            ImeAction.Next
-                        } else {
-                            ImeAction.Unspecified
+                        imeAction = ImeAction.Search,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSearch = {
+                            if (searchState.replaceShown) {
+                                replaceFocusRequester.requestFocus()
+                            } else {
+                                onNextMatchClicked()
+                            }
                         },
                     ),
                     endContent = {
@@ -120,11 +132,23 @@ internal fun SearchPanel(
                     },
                     modifier = Modifier
                         .padding(horizontal = 8.dp)
-                        .focusRequester(focusRequester)
+                        .focusRequester(findFocusRequester)
+                        .onPreviewKeyEvent { event ->
+                            if ((event.key == Key.Enter || event.key == Key.NumPadEnter) && event.type == KeyEventType.KeyDown) {
+                                if (searchState.replaceShown) {
+                                    replaceFocusRequester.requestFocus()
+                                } else {
+                                    onNextMatchClicked()
+                                }
+                                true
+                            } else {
+                                false
+                            }
+                        }
                 )
 
                 LaunchedEffect(Unit) {
-                    focusRequester.requestFocus()
+                    findFocusRequester.requestFocus()
                 }
 
                 if (searchState.replaceShown) {
@@ -134,8 +158,28 @@ internal fun SearchPanel(
                         inputText = searchState.replaceText,
                         onInputChanged = onReplaceTextChanged,
                         placeholderText = stringResource(R.string.editor_menu_find_replace),
-                        modifier = Modifier.padding(horizontal = 8.dp)
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Search,
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onSearch = { onReplaceMatchClicked() },
+                        ),
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp)
+                            .focusRequester(replaceFocusRequester)
+                            .onPreviewKeyEvent { event ->
+                                if ((event.key == Key.Enter || event.key == Key.NumPadEnter) && event.type == KeyEventType.KeyDown) {
+                                    onReplaceMatchClicked()
+                                    true
+                                } else {
+                                    false
+                                }
+                            }
                     )
+
+                    LaunchedEffect(searchState.replaceShown) {
+                        replaceFocusRequester.requestFocus()
+                    }
                 }
             }
 

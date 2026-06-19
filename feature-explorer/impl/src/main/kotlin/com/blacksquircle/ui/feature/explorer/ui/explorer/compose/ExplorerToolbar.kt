@@ -104,7 +104,7 @@ internal fun ExplorerToolbar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = workspaceName.uppercase(),
+                text = workspaceName,
                 style = SquircleTheme.typography.text12Regular,
                 fontWeight = FontWeight.Bold,
                 color = SquircleTheme.colors.colorTextAndIconSecondary,

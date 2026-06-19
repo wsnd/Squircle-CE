@@ -21,6 +21,7 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.ReportDrawnWhen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -33,10 +34,12 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -199,6 +202,18 @@ internal fun EditorScreen(
         onToggleBottomPanel = viewModel::onToggleBottomPanel,
         autoSave = viewState.settings.autoSaveFiles,
         onAutoSaveClicked = viewModel::onAutoSaveClicked,
+        // Global search callbacks
+        onGlobalSearchQueryChanged = viewModel::onGlobalSearchQueryChanged,
+        onGlobalSearchReplaceTextChanged = viewModel::onGlobalSearchReplaceTextChanged,
+        onGlobalSearchToggleReplace = viewModel::onGlobalSearchToggleReplace,
+        onGlobalSearchRegexClicked = viewModel::onGlobalSearchRegexClicked,
+        onGlobalSearchMatchCaseClicked = viewModel::onGlobalSearchMatchCaseClicked,
+        onGlobalSearchWordsOnlyClicked = viewModel::onGlobalSearchWordsOnlyClicked,
+        onGlobalSearchSubmitted = viewModel::onGlobalSearchSubmitted,
+        onGlobalSearchClearClicked = viewModel::onGlobalSearchClearClicked,
+        onGlobalSearchResultClicked = viewModel::onGlobalSearchResultClicked,
+        onGlobalSearchReplaceAll = viewModel::onGlobalSearchReplaceAll,
+        onGlobalSearchReplaceResult = viewModel::onGlobalSearchReplaceResult,
     )
 
     val openFileContract = rememberOpenFileContract { result ->
@@ -308,6 +323,18 @@ private fun EditorScreen(
     onExtraKeyClicked: (Char) -> Unit = {},
     onExtraOptionsClicked: () -> Unit = {},
     onToggleBottomPanel: () -> Unit = {},
+    // Global search callbacks
+    onGlobalSearchQueryChanged: (String) -> Unit = {},
+    onGlobalSearchReplaceTextChanged: (String) -> Unit = {},
+    onGlobalSearchToggleReplace: () -> Unit = {},
+    onGlobalSearchRegexClicked: () -> Unit = {},
+    onGlobalSearchMatchCaseClicked: () -> Unit = {},
+    onGlobalSearchWordsOnlyClicked: () -> Unit = {},
+    onGlobalSearchSubmitted: () -> Unit = {},
+    onGlobalSearchClearClicked: () -> Unit = {},
+    onGlobalSearchResultClicked: (com.blacksquircle.ui.feature.editor.domain.GlobalSearchUseCase.FileSearchResult) -> Unit = {},
+    onGlobalSearchReplaceAll: () -> Unit = {},
+    onGlobalSearchReplaceResult: (com.blacksquircle.ui.feature.editor.domain.GlobalSearchUseCase.FileSearchResult) -> Unit = {},
     line: Int = 1,
     column: Int = 1,
     sidePaneWidth: Dp = 300.dp,
@@ -354,12 +381,24 @@ private fun EditorScreen(
                 color = SquircleTheme.colors.colorBackgroundSecondary
             ) {
                 if (searchPanelVisible) {
-                    // Show search panel
-                    androidx.compose.material.Text(
-                        text = "Search Panel (Coming Soon)",
-                        style = SquircleTheme.typography.text16Regular,
-                        color = SquircleTheme.colors.colorTextAndIconSecondary,
-                        modifier = Modifier.padding(16.dp)
+                    // Show global search panel in sidebar (VSCode style)
+                    val currentGlobalSearchState = viewState.globalSearchState
+                    
+                    GlobalSearchPanel(
+                        searchState = currentGlobalSearchState,
+                        onQueryChanged = onGlobalSearchQueryChanged,
+                        onReplaceTextChanged = onGlobalSearchReplaceTextChanged,
+                        onToggleReplaceClicked = onGlobalSearchToggleReplace,
+                        onRegexClicked = onGlobalSearchRegexClicked,
+                        onMatchCaseClicked = onGlobalSearchMatchCaseClicked,
+                        onWordsOnlyClicked = onGlobalSearchWordsOnlyClicked,
+                        onCloseSearchClicked = onSearchClicked,
+                        onSearchSubmitted = onGlobalSearchSubmitted,
+                        onClearClicked = onGlobalSearchClearClicked,
+                        onResultClicked = onGlobalSearchResultClicked,
+                        onReplaceAllClicked = onGlobalSearchReplaceAll,
+                        onReplaceResultClicked = onGlobalSearchReplaceResult,
+                        modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     // Show file explorer

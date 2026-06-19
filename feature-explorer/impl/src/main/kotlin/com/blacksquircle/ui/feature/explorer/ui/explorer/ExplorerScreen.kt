@@ -241,8 +241,11 @@ private fun ExplorerScreen(
         ScaffoldSuite(
             topBar = {
                 ExplorerToolbar(
-                    workspaceName = viewState.selectedWorkspace?.name
-                        ?: stringResource(R.string.explorer_workspace_button_files),
+                    workspaceName = when (viewState.selectedWorkspace?.type) {
+                        WorkspaceType.SERVER -> viewState.selectedWorkspace?.name
+                            ?: stringResource(R.string.explorer_workspace_button_files)
+                        else -> stringResource(R.string.explorer_workspace_button_files)
+                    },
                     workspaceType = viewState.selectedWorkspace
                         ?.type ?: WorkspaceType.LOCAL,
                     searchQuery = viewState.searchQuery,

@@ -39,6 +39,7 @@ dependencies {
 
     implementation(project(":feature-python"))
     implementation(project(":feature-terminal:api"))
+    implementation(project(":feature-terminal:termux-native"))
 
     implementation(libs.google.guava.empty)
     implementation(libs.termux.shared)

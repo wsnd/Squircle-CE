@@ -36,6 +36,15 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
     packaging {
+        jniLibs {
+            // termux-native module provides 16KB-aligned libs built via CMake.
+            // When both termux-native and Termux AAR ship the same .so, prefer
+            // the version from termux-native (which does not link libstdc++).
+            // Gradle resolves projects before external AARs, so termux-native
+            // wins by default; pickFirsts handles any remaining duplicates.
+            pickFirsts += "**/liblocal-socket.so"
+            pickFirsts += "**/libtermux.so"
+        }
         resources {
             excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
             excludes += "META-INF/versions/11/OSGI-INF/MANIFEST.MF"

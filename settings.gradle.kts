@@ -61,6 +61,7 @@ include(
     ":feature-shortcuts:impl",
     ":feature-terminal:api",
     ":feature-terminal:impl",
+    ":feature-terminal:termux-native",
     ":feature-themes:api",
     ":feature-themes:impl",
 )

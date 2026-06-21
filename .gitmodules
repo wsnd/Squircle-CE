@@ -2,3 +2,9 @@
 	path = sora-editor
 	url = https://github.com/massivemadness/sora-editor.git
 	shallow = true
+[submodule "cpython"]
+	path = cpython
+	url = https://github.com/python/cpython.git
+[submodule "termux"]
+	path = termux
+	url = https://github.com/wsnd/termux-app.git

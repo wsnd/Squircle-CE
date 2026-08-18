@@ -23,7 +23,7 @@ import com.blacksquircle.ui.core.extensions.indexOf
 import com.blacksquircle.ui.core.mvi.ViewEvent
 import com.blacksquircle.ui.core.provider.resources.StringProvider
 import com.blacksquircle.ui.feature.git.R
-import com.blacksquircle.ui.feature.git.domain.model.GitChange
+import com.blacksquircle.ui.feature.git.api.model.GitChange
 import com.blacksquircle.ui.feature.git.domain.repository.GitRepository
 import com.blacksquircle.ui.navigation.api.Navigator
 import dagger.assisted.Assisted

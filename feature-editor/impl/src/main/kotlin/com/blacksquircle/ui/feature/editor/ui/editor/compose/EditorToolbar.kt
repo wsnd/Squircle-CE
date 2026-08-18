@@ -69,6 +69,7 @@ internal fun EditorToolbar(
     onPushClicked: () -> Unit = {},
     onCheckoutClicked: () -> Unit = {},
     onTerminalClicked: () -> Unit = {},
+    onGitPanelClicked: () -> Unit = {},
     onCloseFileClicked: () -> Unit = {},
     onCloseOthersClicked: () -> Unit = {},
     onCloseAllClicked: () -> Unit = {},
@@ -185,6 +186,7 @@ internal fun EditorToolbar(
                         onCommitClicked = { menuType = null; onCommitClicked() },
                         onPushClicked = { menuType = null; onPushClicked() },
                         onCheckoutClicked = { menuType = null; onCheckoutClicked() },
+                        onGitPanelClicked = { menuType = null; onGitPanelClicked() },
                     )
                 }
             )

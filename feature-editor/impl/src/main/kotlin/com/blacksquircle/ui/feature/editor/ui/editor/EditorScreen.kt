@@ -78,6 +78,7 @@ import com.blacksquircle.ui.feature.editor.ui.editor.model.*
 import com.blacksquircle.ui.feature.explorer.ui.explorer.DrawerExplorer
 import com.blacksquircle.ui.feature.git.api.navigation.CheckoutRoute.Companion.KEY_CHECKOUT
 import com.blacksquircle.ui.feature.git.api.navigation.PullRoute.Companion.KEY_PULL
+import com.blacksquircle.ui.feature.git.ui.GitPanel
 import com.blacksquircle.ui.feature.terminal.ui.terminal.TerminalPanel
 import kotlinx.coroutines.launch
 import com.blacksquircle.ui.ds.R as UiR
@@ -112,6 +113,9 @@ internal fun EditorScreen(
     // Search panel state
     var searchPanelVisible by rememberSaveable { mutableStateOf(false) }
 
+    // Git panel state
+    var gitPanelVisible by rememberSaveable { mutableStateOf(false) }
+
     EditorScreen(
         viewState = viewState,
         drawerState = drawerState,
@@ -122,6 +126,7 @@ internal fun EditorScreen(
         sidePaneWidth = sidePaneWidth.dp,
         bottomPanelHeight = bottomPanelHeight.dp,
         searchPanelVisible = searchPanelVisible,
+        gitPanelVisible = gitPanelVisible,
         onSidePaneWidthChanged = { sidePaneWidth = it.value },
         onBottomPanelHeightChanged = { bottomPanelHeight = it.value },
         onCursorChanged = { l, c ->
@@ -130,9 +135,13 @@ internal fun EditorScreen(
         },
         onDrawerClicked = {
             scope.launch {
-                // Close search panel when opening file explorer
+                // Close search and git panels when opening file explorer
                 if (searchPanelVisible) {
                     searchPanelVisible = false
+                }
+                if (gitPanelVisible) {
+                    gitPanelVisible = false
+                    viewModel.onGitPanelClosed()
                 }
                 // Toggle drawer state
                 if (drawerState.isOpen) drawerState.close() else drawerState.open()
@@ -144,8 +153,26 @@ internal fun EditorScreen(
                 if (drawerState.isOpen) {
                     drawerState.close()
                 }
+                if (gitPanelVisible) {
+                    gitPanelVisible = false
+                    viewModel.onGitPanelClosed()
+                }
                 // Toggle search panel
                 searchPanelVisible = !searchPanelVisible
+            }
+        },
+        onGitClicked = {
+            scope.launch {
+                // Close drawer and search when opening git
+                if (drawerState.isOpen) {
+                    drawerState.close()
+                }
+                if (searchPanelVisible) {
+                    searchPanelVisible = false
+                }
+                // Toggle git panel
+                gitPanelVisible = !gitPanelVisible
+                viewModel.onGitPanelClicked()
             }
         },
         onNewFileClicked = viewModel::onNewFileClicked,
@@ -214,6 +241,17 @@ internal fun EditorScreen(
         onGlobalSearchResultClicked = viewModel::onGlobalSearchResultClicked,
         onGlobalSearchReplaceAll = viewModel::onGlobalSearchReplaceAll,
         onGlobalSearchReplaceResult = viewModel::onGlobalSearchReplaceResult,
+        // Git panel callbacks
+        onGitPanelRefreshClicked = viewModel::onGitPanelRefreshClicked,
+        onGitPanelChangeClicked = viewModel::onGitPanelChangeClicked,
+        onGitPanelInitRepositoryClicked = viewModel::onGitPanelInitRepositoryClicked,
+        onGitPanelStageClicked = viewModel::onGitPanelStageClicked,
+        onGitPanelUnstageClicked = viewModel::onGitPanelUnstageClicked,
+        onGitPanelStageAllClicked = viewModel::onGitPanelStageAllClicked,
+        onGitPanelUnstageAllClicked = viewModel::onGitPanelUnstageAllClicked,
+        onGitPanelDiscardClicked = viewModel::onGitPanelDiscardClicked,
+        onGitPanelCommitMessageChanged = viewModel::onGitPanelCommitMessageChanged,
+        onGitPanelCommitClicked = viewModel::onGitPanelCommitClicked,
     )
 
     val openFileContract = rememberOpenFileContract { result ->
@@ -269,8 +307,10 @@ private fun EditorScreen(
     drawerState: DrawerState,
     tabsState: LazyListState,
     searchPanelVisible: Boolean = false,
+    gitPanelVisible: Boolean = false,
     onDrawerClicked: () -> Unit = {},
     onSearchClicked: () -> Unit = {},
+    onGitClicked: () -> Unit = {},
     onNewFileClicked: () -> Unit = {},
     onOpenFileClicked: () -> Unit = {},
     onOpenFolderClicked: () -> Unit = {},
@@ -335,6 +375,17 @@ private fun EditorScreen(
     onGlobalSearchResultClicked: (com.blacksquircle.ui.feature.editor.domain.GlobalSearchUseCase.FileSearchResult) -> Unit = {},
     onGlobalSearchReplaceAll: () -> Unit = {},
     onGlobalSearchReplaceResult: (com.blacksquircle.ui.feature.editor.domain.GlobalSearchUseCase.FileSearchResult) -> Unit = {},
+    // Git panel callbacks
+    onGitPanelRefreshClicked: () -> Unit = {},
+    onGitPanelChangeClicked: (com.blacksquircle.ui.feature.git.api.model.GitChange) -> Unit = {},
+    onGitPanelInitRepositoryClicked: () -> Unit = {},
+    onGitPanelStageClicked: (com.blacksquircle.ui.feature.git.api.model.GitChange) -> Unit = {},
+    onGitPanelUnstageClicked: (com.blacksquircle.ui.feature.git.api.model.GitChange) -> Unit = {},
+    onGitPanelStageAllClicked: () -> Unit = {},
+    onGitPanelUnstageAllClicked: () -> Unit = {},
+    onGitPanelDiscardClicked: (com.blacksquircle.ui.feature.git.api.model.GitChange) -> Unit = {},
+    onGitPanelCommitMessageChanged: (String) -> Unit = {},
+    onGitPanelCommitClicked: () -> Unit = {},
     line: Int = 1,
     column: Int = 1,
     sidePaneWidth: Dp = 300.dp,
@@ -370,39 +421,75 @@ private fun EditorScreen(
                     selected = searchPanelVisible,
                     onClick = onSearchClicked,
                 )
+                NavigationRailItem(
+                    iconResId = UiR.drawable.ic_git,
+                    selected = gitPanelVisible,
+                    onClick = onGitClicked,
+                )
             }
             VerticalDivider()
         }
 
-        if (isTablet && (drawerState.isOpen || searchPanelVisible)) {
+        if (isTablet && (drawerState.isOpen || searchPanelVisible || gitPanelVisible)) {
             Surface(
                 modifier = Modifier.width(sidePaneWidth).fillMaxHeight(),
                 shape = RectangleShape,
                 color = SquircleTheme.colors.colorBackgroundSecondary
             ) {
-                if (searchPanelVisible) {
-                    // Show global search panel in sidebar (VSCode style)
-                    val currentGlobalSearchState = viewState.globalSearchState
-                    
-                    GlobalSearchPanel(
-                        searchState = currentGlobalSearchState,
-                        onQueryChanged = onGlobalSearchQueryChanged,
-                        onReplaceTextChanged = onGlobalSearchReplaceTextChanged,
-                        onToggleReplaceClicked = onGlobalSearchToggleReplace,
-                        onRegexClicked = onGlobalSearchRegexClicked,
-                        onMatchCaseClicked = onGlobalSearchMatchCaseClicked,
-                        onWordsOnlyClicked = onGlobalSearchWordsOnlyClicked,
-                        onCloseSearchClicked = onSearchClicked,
-                        onSearchSubmitted = onGlobalSearchSubmitted,
-                        onClearClicked = onGlobalSearchClearClicked,
-                        onResultClicked = onGlobalSearchResultClicked,
-                        onReplaceAllClicked = onGlobalSearchReplaceAll,
-                        onReplaceResultClicked = onGlobalSearchReplaceResult,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    // Show file explorer
-                    DrawerExplorer(onDrawerClicked)
+                when {
+                    gitPanelVisible -> {
+                        // Show git panel in sidebar (VSCode style)
+                        val currentGitState = viewState.gitPanelState
+                        
+                        GitPanel(
+                            stagedChanges = currentGitState.stagedChanges,
+                            unstagedChanges = currentGitState.unstagedChanges,
+                            currentBranch = currentGitState.currentBranch,
+                            isLoading = currentGitState.isLoading,
+                            isError = currentGitState.isError,
+                            errorMessage = currentGitState.errorMessage,
+                            hasRepository = currentGitState.repositoryPath.isNotEmpty() && !currentGitState.showInitView,
+                            showInitView = currentGitState.showInitView,
+                            commitMessage = currentGitState.commitMessage,
+                            isCommitting = currentGitState.isCommitting,
+                            onRefreshClicked = onGitPanelRefreshClicked,
+                            onChangeClicked = onGitPanelChangeClicked,
+                            onInitRepositoryClicked = onGitPanelInitRepositoryClicked,
+                            onStageClicked = onGitPanelStageClicked,
+                            onUnstageClicked = onGitPanelUnstageClicked,
+                            onStageAllClicked = onGitPanelStageAllClicked,
+                            onUnstageAllClicked = onGitPanelUnstageAllClicked,
+                            onDiscardClicked = onGitPanelDiscardClicked,
+                            onCommitMessageChanged = onGitPanelCommitMessageChanged,
+                            onCommitClicked = onGitPanelCommitClicked,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    searchPanelVisible -> {
+                        // Show global search panel in sidebar (VSCode style)
+                        val currentGlobalSearchState = viewState.globalSearchState
+                        
+                        GlobalSearchPanel(
+                            searchState = currentGlobalSearchState,
+                            onQueryChanged = onGlobalSearchQueryChanged,
+                            onReplaceTextChanged = onGlobalSearchReplaceTextChanged,
+                            onToggleReplaceClicked = onGlobalSearchToggleReplace,
+                            onRegexClicked = onGlobalSearchRegexClicked,
+                            onMatchCaseClicked = onGlobalSearchMatchCaseClicked,
+                            onWordsOnlyClicked = onGlobalSearchWordsOnlyClicked,
+                            onCloseSearchClicked = onSearchClicked,
+                            onSearchSubmitted = onGlobalSearchSubmitted,
+                            onClearClicked = onGlobalSearchClearClicked,
+                            onResultClicked = onGlobalSearchResultClicked,
+                            onReplaceAllClicked = onGlobalSearchReplaceAll,
+                            onReplaceResultClicked = onGlobalSearchReplaceResult,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    else -> {
+                        // Show file explorer
+                        DrawerExplorer(onDrawerClicked)
+                    }
                 }
             }
             VerticalDraggableDivider(
@@ -442,6 +529,7 @@ private fun EditorScreen(
                         onPushClicked = onPushClicked,
                         onCheckoutClicked = onCheckoutClicked,
                         onTerminalClicked = onTerminalClicked,
+                        onGitPanelClicked = onGitClicked,
                         onCloseFileClicked = onCloseFileClicked,
                         onCloseOthersClicked = { 
                             viewState.currentDocument?.document?.let(onCloseOthersClicked) 
@@ -469,7 +557,41 @@ private fun EditorScreen(
                 },
                 drawerState = drawerState,
                 drawerGesturesEnabled = !isTablet && drawerState.isOpen,
-                drawerContent = if (!isTablet) { { DrawerExplorer(onDrawerClicked) } } else null,
+                drawerContent = if (!isTablet) {
+                    {
+                        when {
+                            gitPanelVisible -> {
+                                val currentGitState = viewState.gitPanelState
+                                GitPanel(
+                                    stagedChanges = currentGitState.stagedChanges,
+                                    unstagedChanges = currentGitState.unstagedChanges,
+                                    currentBranch = currentGitState.currentBranch,
+                                    isLoading = currentGitState.isLoading,
+                                    isError = currentGitState.isError,
+                                    errorMessage = currentGitState.errorMessage,
+                                    hasRepository = currentGitState.repositoryPath.isNotEmpty() && !currentGitState.showInitView,
+                                    showInitView = currentGitState.showInitView,
+                                    commitMessage = currentGitState.commitMessage,
+                                    isCommitting = currentGitState.isCommitting,
+                                    onRefreshClicked = onGitPanelRefreshClicked,
+                                    onChangeClicked = onGitPanelChangeClicked,
+                                    onInitRepositoryClicked = onGitPanelInitRepositoryClicked,
+                                    onStageClicked = onGitPanelStageClicked,
+                                    onUnstageClicked = onGitPanelUnstageClicked,
+                                    onStageAllClicked = onGitPanelStageAllClicked,
+                                    onUnstageAllClicked = onGitPanelUnstageAllClicked,
+                                    onDiscardClicked = onGitPanelDiscardClicked,
+                                    onCommitMessageChanged = onGitPanelCommitMessageChanged,
+                                    onCommitClicked = onGitPanelCommitClicked,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            else -> {
+                                DrawerExplorer(onDrawerClicked)
+                            }
+                        }
+                    }
+                } else null,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             ) { contentPadding ->
                 Column(modifier = Modifier.fillMaxSize().padding(contentPadding)) {

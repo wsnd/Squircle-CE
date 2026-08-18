@@ -40,8 +40,8 @@ import com.blacksquircle.ui.ds.checkbox.CheckBox
 import com.blacksquircle.ui.ds.modifier.debounceClickable
 import com.blacksquircle.ui.ds.selectiongroup.SelectionGroup
 import com.blacksquircle.ui.feature.git.R
-import com.blacksquircle.ui.feature.git.domain.model.ChangeType
-import com.blacksquircle.ui.feature.git.domain.model.GitChange
+import com.blacksquircle.ui.feature.git.api.model.ChangeType
+import com.blacksquircle.ui.feature.git.api.model.GitChange
 
 @Composable
 internal fun ChangeList(

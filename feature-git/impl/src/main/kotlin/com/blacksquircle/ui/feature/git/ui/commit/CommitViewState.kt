@@ -18,7 +18,7 @@ package com.blacksquircle.ui.feature.git.ui.commit
 
 import androidx.compose.runtime.Immutable
 import com.blacksquircle.ui.core.mvi.ViewState
-import com.blacksquircle.ui.feature.git.domain.model.GitChange
+import com.blacksquircle.ui.feature.git.api.model.GitChange
 
 @Immutable
 internal data class CommitViewState(

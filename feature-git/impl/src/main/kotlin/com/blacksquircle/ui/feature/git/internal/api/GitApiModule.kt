@@ -16,9 +16,11 @@
 
 package com.blacksquircle.ui.feature.git.internal.api
 
+import com.blacksquircle.ui.core.provider.coroutine.DispatcherProvider
 import com.blacksquircle.ui.core.settings.SettingsManager
 import com.blacksquircle.ui.feature.git.api.interactor.GitInteractor
 import com.blacksquircle.ui.feature.git.data.interactor.GitInteractorImpl
+import com.blacksquircle.ui.feature.git.data.repository.GitRepositoryImpl
 import com.blacksquircle.ui.feature.git.ui.GitEntryProvider
 import com.blacksquircle.ui.navigation.api.provider.EntryProvider
 import dagger.Module
@@ -31,9 +33,17 @@ object GitApiModule {
 
     @Provides
     @Singleton
-    fun provideGitInteractor(settingsManager: SettingsManager): GitInteractor {
+    fun provideGitInteractor(
+        dispatcherProvider: DispatcherProvider,
+        settingsManager: SettingsManager,
+    ): GitInteractor {
+        val gitRepository = GitRepositoryImpl(
+            dispatcherProvider = dispatcherProvider,
+            settingsManager = settingsManager,
+        )
         return GitInteractorImpl(
             settingsManager = settingsManager,
+            gitRepository = gitRepository,
         )
     }
 

@@ -20,6 +20,7 @@ import androidx.compose.runtime.Immutable
 import com.blacksquircle.ui.core.mvi.ViewState
 import com.blacksquircle.ui.feature.editor.ui.editor.model.DocumentState
 import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorSettings
+import com.blacksquircle.ui.feature.editor.ui.editor.model.GitPanelState
 import com.blacksquircle.ui.feature.editor.ui.editor.model.GlobalSearchState
 
 @Immutable
@@ -31,6 +32,7 @@ internal data class EditorViewState(
     val isLoading: Boolean = true,
     val bottomPanelVisible: Boolean = false,
     val globalSearchState: GlobalSearchState = GlobalSearchState(),
+    val gitPanelState: GitPanelState = GitPanelState(),
 ) : ViewState {
 
     val currentDocument: DocumentState?

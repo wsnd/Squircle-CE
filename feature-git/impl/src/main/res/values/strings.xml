@@ -62,4 +62,20 @@
 
     <string name="git_error_fatal" translatable="false">fatal: %1$s</string>
 
+    <string name="git_panel_title">Source Control</string>
+    <string name="git_panel_no_repository">No git repository found. Open a folder containing a .git repository to see changes.</string>
+    <string name="git_panel_initialize_hint">Initialize a git repository to track changes in this folder.</string>
+    <string name="git_panel_initialize_button">Initialize Repository</string>
+    <string name="git_panel_error">An error occurred while loading changes</string>
+    <string name="git_panel_refresh">Refresh</string>
+    <string name="git_panel_staged_changes">Staged Changes</string>
+    <string name="git_panel_changes">Changes</string>
+    <string name="git_toast_init_complete">Git repository initialized</string>
+    <string name="git_panel_stage_file">Stage file</string>
+    <string name="git_panel_unstage_file">Unstage file</string>
+    <string name="git_panel_discard_file">Discard changes</string>
+    <string name="git_panel_stage_all">Stage all</string>
+    <string name="git_panel_unstage_all">Unstage all</string>
+    <string name="git_panel_commit_placeholder">Message (press Ctrl+Enter to commit)</string>
+
 </resources>

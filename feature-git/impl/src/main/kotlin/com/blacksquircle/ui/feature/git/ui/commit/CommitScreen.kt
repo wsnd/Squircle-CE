@@ -44,8 +44,8 @@ import com.blacksquircle.ui.ds.progress.LinearProgress
 import com.blacksquircle.ui.ds.textfield.TextField
 import com.blacksquircle.ui.feature.git.R
 import com.blacksquircle.ui.feature.git.api.navigation.CommitRoute
-import com.blacksquircle.ui.feature.git.domain.model.ChangeType
-import com.blacksquircle.ui.feature.git.domain.model.GitChange
+import com.blacksquircle.ui.feature.git.api.model.ChangeType
+import com.blacksquircle.ui.feature.git.api.model.GitChange
 import com.blacksquircle.ui.feature.git.internal.GitComponent
 import com.blacksquircle.ui.feature.git.ui.commit.compose.ChangeList
 

@@ -21,6 +21,8 @@ import com.blacksquircle.ui.feature.git.api.exception.InvalidCredentialsExceptio
 import com.blacksquircle.ui.feature.git.api.exception.RepositoryNotFoundException
 import com.blacksquircle.ui.feature.git.api.exception.UnsupportedFilesystemException
 import com.blacksquircle.ui.feature.git.api.interactor.GitInteractor
+import com.blacksquircle.ui.feature.git.api.model.GitChange
+import com.blacksquircle.ui.feature.git.domain.repository.GitRepository
 import com.blacksquircle.ui.filesystem.base.exception.FileNotFoundException
 import com.blacksquircle.ui.filesystem.base.model.FileModel
 import com.blacksquircle.ui.filesystem.local.LocalFilesystem
@@ -33,19 +35,13 @@ import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
 import java.io.File
 
 internal class GitInteractorImpl(
-    private val settingsManager: SettingsManager
+    private val settingsManager: SettingsManager,
+    private val gitRepository: GitRepository,
 ) : GitInteractor {
 
     override suspend fun checkRepository(repository: String?): String {
-        if (repository == null || !File(repository).exists()) {
+        if (repository == null || !File(repository, ".git").exists()) {
             throw RepositoryNotFoundException()
-        }
-        if (settingsManager.gitCredentialsUsername.isBlank() ||
-            settingsManager.gitCredentialsPassword.isBlank() ||
-            settingsManager.gitUserEmail.isBlank() ||
-            settingsManager.gitUserName.isBlank()
-        ) {
-            throw InvalidCredentialsException()
         }
         return repository
     }
@@ -96,6 +92,53 @@ internal class GitInteractorImpl(
 
             awaitClose()
         }
+    }
+
+    override suspend fun currentBranch(repository: String): String {
+        return gitRepository.currentBranch(repository)
+    }
+
+    override suspend fun changesList(repository: String): List<GitChange> {
+        return gitRepository.changesList(repository)
+    }
+
+    override suspend fun initRepository(directory: String) {
+        gitRepository.init(directory)
+    }
+
+    override suspend fun stage(repository: String, change: GitChange) {
+        gitRepository.stage(repository, change)
+    }
+
+    override suspend fun unstage(repository: String, change: GitChange) {
+        gitRepository.unstage(repository, change)
+    }
+
+    override suspend fun stageAll(repository: String) {
+        gitRepository.stageAll(repository)
+    }
+
+    override suspend fun unstageAll(repository: String) {
+        gitRepository.unstageAll(repository)
+    }
+
+    override suspend fun discard(repository: String, change: GitChange) {
+        gitRepository.discard(repository, change)
+    }
+
+    override suspend fun stagedChanges(repository: String): List<GitChange> {
+        return gitRepository.stagedChanges(repository)
+    }
+
+    override suspend fun unstagedChanges(repository: String): List<GitChange> {
+        return gitRepository.unstagedChanges(repository)
+    }
+
+    override suspend fun commit(repository: String, message: String) {
+        // Inline commit: stage all and commit
+        val allChanges = gitRepository.changesList(repository)
+        gitRepository.stageAll(repository)
+        gitRepository.commit(repository, allChanges, message, false)
     }
 
     companion object {

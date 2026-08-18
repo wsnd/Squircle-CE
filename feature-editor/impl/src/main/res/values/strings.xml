@@ -54,6 +54,7 @@
     <string name="editor_menu_tools_insert_color">Insert Color</string>
 
     <string name="editor_menu_git" translatable="false">Git</string>
+    <string name="editor_menu_git_view_changes">View Changes</string>
     <string name="editor_menu_git_fetch">Fetch</string>
     <string name="editor_menu_git_pull">Pull</string>
     <string name="editor_menu_git_commit">Commit</string>
@@ -68,6 +69,9 @@
 
     <string name="editor_toast_file_saved">Saved</string>
     <string name="editor_toast_git_invalid_credentials">Git requires configuration in settings</string>
+    <string name="editor_toast_git_initialized">Git repository initialized</string>
+    <string name="editor_toast_commit_created">Commit created</string>
+    <string name="editor_toast_changes_discarded">Changes discarded</string>
 
     <string name="editor_goto_line_dialog_title">Go to Line…</string>
     <string name="editor_goto_line_dialog_input_label">Line:</string>

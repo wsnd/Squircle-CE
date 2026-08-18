@@ -16,7 +16,7 @@
 
 package com.blacksquircle.ui.feature.git.domain.repository
 
-import com.blacksquircle.ui.feature.git.domain.model.GitChange
+import com.blacksquircle.ui.feature.git.api.model.GitChange
 
 internal interface GitRepository {
 
@@ -36,4 +36,44 @@ internal interface GitRepository {
     suspend fun push(repository: String, force: Boolean)
     suspend fun checkout(repository: String, branchName: String)
     suspend fun checkoutNew(repository: String, branchName: String, branchBase: String)
+
+    /**
+     * Initialize a new git repository at the given path.
+     */
+    suspend fun init(directory: String)
+
+    /**
+     * Stage a single file for commit.
+     */
+    suspend fun stage(repository: String, change: GitChange)
+
+    /**
+     * Unstage a single file.
+     */
+    suspend fun unstage(repository: String, change: GitChange)
+
+    /**
+     * Stage all changes.
+     */
+    suspend fun stageAll(repository: String)
+
+    /**
+     * Unstage all staged changes.
+     */
+    suspend fun unstageAll(repository: String)
+
+    /**
+     * Discard changes for a single file (restore to HEAD).
+     */
+    suspend fun discard(repository: String, change: GitChange)
+
+    /**
+     * Get list of staged changes only.
+     */
+    suspend fun stagedChanges(repository: String): List<GitChange>
+
+    /**
+     * Get list of unstaged changes only.
+     */
+    suspend fun unstagedChanges(repository: String): List<GitChange>
 }

@@ -20,8 +20,8 @@ import com.blacksquircle.ui.core.provider.coroutine.DispatcherProvider
 import com.blacksquircle.ui.core.settings.SettingsManager
 import com.blacksquircle.ui.feature.git.domain.exception.GitPullException
 import com.blacksquircle.ui.feature.git.domain.exception.GitPushException
-import com.blacksquircle.ui.feature.git.domain.model.ChangeType
-import com.blacksquircle.ui.feature.git.domain.model.GitChange
+import com.blacksquircle.ui.feature.git.api.model.ChangeType
+import com.blacksquircle.ui.feature.git.api.model.GitChange
 import com.blacksquircle.ui.feature.git.domain.repository.GitRepository
 import kotlinx.coroutines.withContext
 import org.eclipse.jgit.api.Git
@@ -44,7 +44,12 @@ internal class GitRepositoryImpl(
         return withContext(dispatcherProvider.io()) {
             val repoDir = File(repository)
             Git.open(repoDir).use { git ->
-                git.currentHead()
+                try {
+                    git.currentHead()
+                } catch (e: Exception) {
+                    // Fresh repository without any commits
+                    "main"
+                }
             }
         }
     }
@@ -76,17 +81,22 @@ internal class GitRepositoryImpl(
     override suspend fun changesList(repository: String): List<GitChange> {
         return withContext(dispatcherProvider.io()) {
             val repoDir = File(repository)
-            Git.open(repoDir).use { git ->
-                buildList {
-                    val status = git.status().call()
-                    addAll(status.added.map { GitChange(it, ChangeType.ADDED) })
-                    addAll(status.changed.map { GitChange(it, ChangeType.MODIFIED) })
-                    addAll(status.removed.map { GitChange(it, ChangeType.DELETED) })
-                    addAll(status.missing.map { GitChange(it, ChangeType.DELETED) })
-                    addAll(status.modified.map { GitChange(it, ChangeType.MODIFIED) })
-                    addAll(status.untracked.map { GitChange(it, ChangeType.ADDED) })
-                    addAll(status.conflicting.map { GitChange(it, ChangeType.MODIFIED) })
+            try {
+                Git.open(repoDir).use { git ->
+                    buildList {
+                        val status = git.status().call()
+                        addAll(status.added.map { GitChange(it, ChangeType.ADDED) })
+                        addAll(status.changed.map { GitChange(it, ChangeType.MODIFIED) })
+                        addAll(status.removed.map { GitChange(it, ChangeType.DELETED) })
+                        addAll(status.missing.map { GitChange(it, ChangeType.DELETED) })
+                        addAll(status.modified.map { GitChange(it, ChangeType.MODIFIED) })
+                        addAll(status.untracked.map { GitChange(it, ChangeType.ADDED) })
+                        addAll(status.conflicting.map { GitChange(it, ChangeType.MODIFIED) })
+                    }
                 }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get changes list")
+                emptyList()
             }
         }
     }
@@ -278,6 +288,106 @@ internal class GitRepositoryImpl(
                         .setStartPoint("refs/heads/$branchBase")
                         .setCreateBranch(true)
                         .call()
+                }
+            }
+        }
+    }
+
+    override suspend fun init(directory: String) {
+        withContext(dispatcherProvider.io()) {
+            val repoDir = File(directory)
+            Git.init()
+                .setDirectory(repoDir)
+                .call()
+                .close()
+        }
+    }
+
+    override suspend fun stage(repository: String, change: GitChange) {
+        withContext(dispatcherProvider.io()) {
+            val repoDir = File(repository)
+            Git.open(repoDir).use { git ->
+                git.add().addFilepattern(change.name).call()
+            }
+        }
+    }
+
+    override suspend fun unstage(repository: String, change: GitChange) {
+        withContext(dispatcherProvider.io()) {
+            val repoDir = File(repository)
+            Git.open(repoDir).use { git ->
+                git.reset().addPath(change.name).call()
+            }
+        }
+    }
+
+    override suspend fun stageAll(repository: String) {
+        withContext(dispatcherProvider.io()) {
+            val repoDir = File(repository)
+            Git.open(repoDir).use { git ->
+                git.add().addFilepattern(".").call()
+            }
+        }
+    }
+
+    override suspend fun unstageAll(repository: String) {
+        withContext(dispatcherProvider.io()) {
+            val repoDir = File(repository)
+            Git.open(repoDir).use { git ->
+                git.reset().call()
+            }
+        }
+    }
+
+    override suspend fun discard(repository: String, change: GitChange) {
+        withContext(dispatcherProvider.io()) {
+            val repoDir = File(repository)
+            Git.open(repoDir).use { git ->
+                when (change.changeType) {
+                    ChangeType.ADDED -> {
+                        // Untracked files: just delete the file
+                        val file = File(repoDir, change.name)
+                        if (file.exists()) {
+                            file.delete()
+                        }
+                    }
+                    ChangeType.MODIFIED -> {
+                        // Modified files: checkout to restore
+                        git.checkout().addPath(change.name).call()
+                    }
+                    ChangeType.DELETED -> {
+                        // Deleted files: checkout to restore
+                        git.checkout().addPath(change.name).call()
+                    }
+                }
+            }
+        }
+    }
+
+    override suspend fun stagedChanges(repository: String): List<GitChange> {
+        return withContext(dispatcherProvider.io()) {
+            val repoDir = File(repository)
+            Git.open(repoDir).use { git ->
+                val status = git.status().call()
+                buildList {
+                    addAll(status.added.map { GitChange(it, ChangeType.ADDED) })
+                    addAll(status.changed.map { GitChange(it, ChangeType.MODIFIED) })
+                    addAll(status.removed.map { GitChange(it, ChangeType.DELETED) })
+                }
+            }
+        }
+    }
+
+    override suspend fun unstagedChanges(repository: String): List<GitChange> {
+        return withContext(dispatcherProvider.io()) {
+            val repoDir = File(repository)
+            Git.open(repoDir).use { git ->
+                val status = git.status().call()
+                buildList {
+                    addAll(status.modified.map { GitChange(it, ChangeType.MODIFIED) })
+                    addAll(status.missing.map { GitChange(it, ChangeType.DELETED) })
+                    addAll(status.untracked.map { GitChange(it, ChangeType.ADDED) })
+                    addAll(status.conflicting.map { GitChange(it, ChangeType.MODIFIED) })
                 }
             }
         }

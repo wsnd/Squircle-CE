@@ -16,10 +16,14 @@
 
 package com.blacksquircle.ui.feature.editor.ui.editor.compose.menu
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.blacksquircle.ui.ds.divider.HorizontalDivider
 import com.blacksquircle.ui.ds.popupmenu.PopupMenu
 import com.blacksquircle.ui.ds.popupmenu.PopupMenuItem
 import com.blacksquircle.ui.feature.editor.R
@@ -35,6 +39,7 @@ internal fun GitMenu(
     onCommitClicked: () -> Unit = {},
     onPushClicked: () -> Unit = {},
     onCheckoutClicked: () -> Unit = {},
+    onGitPanelClicked: () -> Unit = {},
 ) {
     PopupMenu(
         expanded = expanded,
@@ -42,6 +47,12 @@ internal fun GitMenu(
         verticalOffset = (-56).dp,
         modifier = modifier,
     ) {
+        PopupMenuItem(
+            title = stringResource(R.string.editor_menu_git_view_changes),
+            iconResId = UiR.drawable.ic_git,
+            onClick = onGitPanelClicked,
+        )
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
         PopupMenuItem(
             title = stringResource(R.string.editor_menu_git_fetch),
             iconResId = UiR.drawable.ic_autorenew,

@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
-package com.blacksquircle.ui.feature.git.domain.model
+package com.blacksquircle.ui.feature.git.api.model
 
-internal enum class ChangeType {
+data class GitChange(
+    val name: String,
+    val changeType: ChangeType,
+)
+
+enum class ChangeType {
     ADDED,
     MODIFIED,
     DELETED,

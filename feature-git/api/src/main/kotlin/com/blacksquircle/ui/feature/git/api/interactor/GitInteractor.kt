@@ -16,6 +16,7 @@
 
 package com.blacksquircle.ui.feature.git.api.interactor
 
+import com.blacksquircle.ui.feature.git.api.model.GitChange
 import com.blacksquircle.ui.filesystem.base.model.FileModel
 import kotlinx.coroutines.flow.Flow
 
@@ -24,4 +25,53 @@ interface GitInteractor {
     suspend fun checkRepository(repository: String?): String
 
     suspend fun cloneRepository(fileModel: FileModel, url: String): Flow<String>
+
+    suspend fun currentBranch(repository: String): String
+
+    suspend fun changesList(repository: String): List<GitChange>
+
+    /**
+     * Initialize a new git repository at the given path.
+     */
+    suspend fun initRepository(directory: String)
+
+    /**
+     * Stage a single file for commit.
+     */
+    suspend fun stage(repository: String, change: GitChange)
+
+    /**
+     * Unstage a single file.
+     */
+    suspend fun unstage(repository: String, change: GitChange)
+
+    /**
+     * Stage all changes.
+     */
+    suspend fun stageAll(repository: String)
+
+    /**
+     * Unstage all staged changes.
+     */
+    suspend fun unstageAll(repository: String)
+
+    /**
+     * Discard changes for a single file (restore to HEAD).
+     */
+    suspend fun discard(repository: String, change: GitChange)
+
+    /**
+     * Get list of staged changes only.
+     */
+    suspend fun stagedChanges(repository: String): List<GitChange>
+
+    /**
+     * Get list of unstaged changes only.
+     */
+    suspend fun unstagedChanges(repository: String): List<GitChange>
+
+    /**
+     * Commit with a message (all staged + selected unstaged changes).
+     */
+    suspend fun commit(repository: String, message: String)
 }

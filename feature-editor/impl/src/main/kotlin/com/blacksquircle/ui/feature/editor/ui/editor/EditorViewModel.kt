@@ -47,6 +47,7 @@ import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorCommand
 import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorSettings
 import com.blacksquircle.ui.feature.editor.ui.editor.model.ErrorAction
 import com.blacksquircle.ui.feature.editor.ui.editor.model.ErrorState
+import com.blacksquircle.ui.feature.editor.ui.editor.model.GitPanelState
 import com.blacksquircle.ui.feature.editor.ui.editor.model.GlobalSearchState
 import com.blacksquircle.ui.feature.editor.ui.editor.model.SearchState
 import com.blacksquircle.ui.feature.editor.ui.editor.view.selectionEnd
@@ -55,6 +56,7 @@ import com.blacksquircle.ui.feature.explorer.api.factory.FilesystemFactory
 import com.blacksquircle.ui.feature.explorer.api.navigation.StorageDeniedRoute
 import com.blacksquircle.ui.feature.explorer.api.repository.ExplorerRepository
 import com.blacksquircle.ui.feature.fonts.api.interactor.FontsInteractor
+import com.blacksquircle.ui.feature.git.api.exception.RepositoryNotFoundException
 import com.blacksquircle.ui.feature.git.api.interactor.GitInteractor
 import com.blacksquircle.ui.feature.git.api.navigation.CheckoutRoute
 import com.blacksquircle.ui.feature.git.api.navigation.CommitRoute
@@ -146,11 +148,34 @@ internal class EditorViewModel @Inject constructor(
     fun onCreateFileResult(fileName: String) {
         viewModelScope.launch {
             try {
-                // Create a new untitled file in the editor
+                // Determine the target directory for the new file:
+                // 1. Use the current document's directory if it exists
+                // 2. Otherwise fallback to the workspace default location
+                val currentDoc = _viewState.value.currentDocument?.document
+                val parentDir: FileModel = if (currentDoc != null && currentDoc.filesystemUuid.isNotEmpty()) {
+                    FileModel(
+                        fileUri = currentDoc.fileUri.substringBeforeLast('/'),
+                        filesystemUuid = currentDoc.filesystemUuid,
+                        isDirectory = true,
+                    )
+                } else {
+                    explorerRepository.currentWorkspace.defaultLocation
+                }
+
+                // Create the file on disk first, so it shows up in the explorer
+                val fileModel = parentDir.copy(
+                    fileUri = parentDir.fileUri + File.separator + fileName,
+                    name = fileName,
+                    isDirectory = false,
+                )
+                val filesystem = filesystemFactory.create(parentDir.filesystemUuid)
+                filesystem.createFile(fileModel)
+
+                // Create a new document backed by the real file
                 val document = DocumentModel(
                     uuid = java.util.UUID.randomUUID().toString(),
-                    fileUri = "",
-                    filesystemUuid = "",
+                    fileUri = fileModel.fileUri,
+                    filesystemUuid = fileModel.filesystemUuid,
                     displayName = fileName,
                     language = com.blacksquircle.ui.feature.editor.data.model.LanguageScope.TEXT,
                     modified = false,
@@ -161,19 +186,9 @@ internal class EditorViewModel @Inject constructor(
                     selectionEnd = 0,
                     gitRepository = null,
                 )
-                
-                documents = documents + DocumentState(document)
-                selectedPosition = documents.size - 1
-                
-                _viewState.update {
-                    it.copy(
-                        documents = documents,
-                        selectedDocument = selectedPosition,
-                        isLoading = false,
-                    )
-                }
-                
-                _viewEvent.send(EditorViewEvent.ScrollToEnd)
+
+                // Load the document through the standard flow so the editor gets its content
+                loadDocument(document, fromUser = true)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -2063,6 +2078,356 @@ internal class EditorViewModel @Inject constructor(
     }
 
     // ==================== End Global Search ====================
+
+    // ==================== Git Panel ====================
+
+    private var gitPanelJob: Job? = null
+
+    fun onGitPanelClicked() {
+        val currentState = _viewState.value
+        val gitPanelVisible = currentState.gitPanelState.repositoryPath.isNotEmpty() ||
+            currentState.gitPanelState.showInitView
+
+        if (gitPanelVisible) {
+            // Toggle off
+            _viewState.update {
+                it.copy(gitPanelState = GitPanelState())
+            }
+            gitPanelJob?.cancel()
+        } else {
+            // Try to load git info from current document
+            viewModelScope.launch {
+                loadGitPanelState()
+            }
+        }
+    }
+
+    /**
+     * Called when the git panel is closed by opening another panel (e.g., drawer or search).
+     * Resets the git panel state so that the next open triggers a fresh load.
+     */
+    fun onGitPanelClosed() {
+        gitPanelJob?.cancel()
+        _viewState.update {
+            it.copy(gitPanelState = GitPanelState())
+        }
+    }
+
+    fun onGitPanelRefreshClicked() {
+        gitPanelJob?.cancel()
+        gitPanelJob = viewModelScope.launch {
+            loadGitChanges()
+        }
+    }
+
+    fun onGitPanelChangeClicked(change: com.blacksquircle.ui.feature.git.api.model.GitChange) {
+        // Open the changed file in editor
+        val repoPath = _viewState.value.gitPanelState.repositoryPath
+        if (repoPath.isNotEmpty()) {
+            val filePath = "$repoPath/${change.name}"
+            val fileUri = "file://$filePath"
+            val fileModel = FileModel(
+                fileUri = fileUri,
+                filesystemUuid = "local",
+                isDirectory = false,
+            )
+            viewModelScope.launch {
+                onFileOpened(fileModel)
+            }
+        }
+    }
+
+    fun onGitPanelStageClicked(change: com.blacksquircle.ui.feature.git.api.model.GitChange) {
+        val repoPath = _viewState.value.gitPanelState.repositoryPath
+        if (repoPath.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                gitInteractor.stage(repoPath, change)
+                loadGitChanges()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewEvent.send(ViewEvent.Toast(e.message.orEmpty()))
+            }
+        }
+    }
+
+    fun onGitPanelUnstageClicked(change: com.blacksquircle.ui.feature.git.api.model.GitChange) {
+        val repoPath = _viewState.value.gitPanelState.repositoryPath
+        if (repoPath.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                gitInteractor.unstage(repoPath, change)
+                loadGitChanges()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewEvent.send(ViewEvent.Toast(e.message.orEmpty()))
+            }
+        }
+    }
+
+    fun onGitPanelStageAllClicked() {
+        val repoPath = _viewState.value.gitPanelState.repositoryPath
+        if (repoPath.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                gitInteractor.stageAll(repoPath)
+                loadGitChanges()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewEvent.send(ViewEvent.Toast(e.message.orEmpty()))
+            }
+        }
+    }
+
+    fun onGitPanelUnstageAllClicked() {
+        val repoPath = _viewState.value.gitPanelState.repositoryPath
+        if (repoPath.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                gitInteractor.unstageAll(repoPath)
+                loadGitChanges()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewEvent.send(ViewEvent.Toast(e.message.orEmpty()))
+            }
+        }
+    }
+
+    fun onGitPanelDiscardClicked(change: com.blacksquircle.ui.feature.git.api.model.GitChange) {
+        val repoPath = _viewState.value.gitPanelState.repositoryPath
+        if (repoPath.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                gitInteractor.discard(repoPath, change)
+                val message = stringProvider.getString(R.string.editor_toast_changes_discarded)
+                _viewEvent.send(ViewEvent.Toast(message))
+                loadGitChanges()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewEvent.send(ViewEvent.Toast(e.message.orEmpty()))
+            }
+        }
+    }
+
+    fun onGitPanelCommitMessageChanged(message: String) {
+        _viewState.update {
+            it.copy(
+                gitPanelState = it.gitPanelState.copy(commitMessage = message)
+            )
+        }
+    }
+
+    fun onGitPanelCommitClicked() {
+        val repoPath = _viewState.value.gitPanelState.repositoryPath
+        val commitMessage = _viewState.value.gitPanelState.commitMessage
+        if (repoPath.isEmpty() || commitMessage.isBlank()) return
+
+        viewModelScope.launch {
+            try {
+                _viewState.update {
+                    it.copy(
+                        gitPanelState = it.gitPanelState.copy(isCommitting = true)
+                    )
+                }
+
+                gitInteractor.commit(repoPath, commitMessage)
+
+                val message = stringProvider.getString(R.string.editor_toast_commit_created)
+                _viewEvent.send(ViewEvent.Toast(message))
+
+                _viewState.update {
+                    it.copy(
+                        gitPanelState = it.gitPanelState.copy(
+                            commitMessage = "",
+                            isCommitting = false,
+                        )
+                    )
+                }
+
+                loadGitChanges()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewState.update {
+                    it.copy(
+                        gitPanelState = it.gitPanelState.copy(
+                            isCommitting = false,
+                            isError = true,
+                            errorMessage = e.message.orEmpty(),
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    fun onGitPanelInitRepositoryClicked() {
+        val repoPath = _viewState.value.gitPanelState.repositoryPath
+        if (repoPath.isEmpty()) return
+
+        viewModelScope.launch {
+            try {
+                _viewState.update {
+                    it.copy(
+                        gitPanelState = it.gitPanelState.copy(
+                            isLoading = true,
+                            isError = false,
+                            errorMessage = "",
+                        )
+                    )
+                }
+
+                gitInteractor.initRepository(repoPath)
+
+                val message = stringProvider.getString(R.string.editor_toast_git_initialized)
+                _viewEvent.send(ViewEvent.Toast(message))
+
+                // Reload git panel state after init
+                loadGitChanges()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewState.update {
+                    it.copy(
+                        gitPanelState = it.gitPanelState.copy(
+                            isError = true,
+                            errorMessage = e.message.orEmpty(),
+                            isLoading = false,
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun loadGitPanelState() {
+        val currentDoc = _viewState.value.currentDocument?.document
+
+        // Determine the working directory:
+        // 1. Walk up from the current file to find .git
+        // 2. Fallback to the current workspace directory
+        val workingDir: String? = if (currentDoc != null) {
+            findGitRepoFromPath(currentDoc.path)
+        } else {
+            val workspacePath = explorerRepository.currentWorkspace.defaultLocation.path
+            findGitRepoFromPath(workspacePath)
+        }
+
+        if (workingDir == null) {
+            _viewState.update {
+                it.copy(gitPanelState = GitPanelState())
+            }
+            return
+        }
+
+        try {
+            val repo = gitInteractor.checkRepository(workingDir)
+
+            _viewState.update {
+                it.copy(
+                    gitPanelState = GitPanelState(
+                        repositoryPath = repo,
+                        isLoading = true,
+                    )
+                )
+            }
+
+            loadGitChanges()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: RepositoryNotFoundException) {
+            // .git not found — show init view
+            _viewState.update {
+                it.copy(
+                    gitPanelState = GitPanelState(
+                        repositoryPath = workingDir,
+                        showInitView = true,
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Timber.e(e, e.message)
+            _viewState.update {
+                it.copy(
+                    gitPanelState = GitPanelState(
+                        repositoryPath = workingDir,
+                        isError = true,
+                        errorMessage = e.message.orEmpty(),
+                    )
+                )
+            }
+        }
+    }
+
+    private suspend fun loadGitChanges() {
+        try {
+            val repoPath = _viewState.value.gitPanelState.repositoryPath
+            if (repoPath.isEmpty()) return
+
+            val branch = gitInteractor.currentBranch(repoPath)
+            val staged = gitInteractor.stagedChanges(repoPath)
+            val unstaged = gitInteractor.unstagedChanges(repoPath)
+
+            _viewState.update {
+                it.copy(
+                    gitPanelState = GitPanelState(
+                        repositoryPath = repoPath,
+                        currentBranch = branch,
+                        stagedChanges = staged,
+                        unstagedChanges = unstaged,
+                        commitMessage = it.gitPanelState.commitMessage,
+                        isLoading = false,
+                    )
+                )
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.e(e, e.message)
+            _viewState.update {
+                it.copy(
+                    gitPanelState = GitPanelState(
+                        repositoryPath = _viewState.value.gitPanelState.repositoryPath,
+                        commitMessage = _viewState.value.gitPanelState.commitMessage,
+                        isError = true,
+                        errorMessage = e.message.orEmpty(),
+                        isLoading = false,
+                    )
+                )
+            }
+        }
+    }
+
+    /**
+     * Walk up from the given file path to find the nearest .git directory,
+     * returning the repository root path, or null if not found.
+     */
+    private fun findGitRepoFromPath(filePath: String): String? {
+        if (filePath.isEmpty()) return null
+        var current: File? = File(filePath)
+        while (current != null) {
+            val gitDir = File(current, ".git")
+            if (gitDir.exists() && gitDir.isDirectory) {
+                return current.absolutePath
+            }
+            current = current.parentFile
+        }
+        return null
+    }
+
+    // ==================== End Git Panel ====================
 
     private suspend fun loadSettings(): EditorSettings = EditorSettings(
         fontSize = settingsManager.fontSize.toFloat(),

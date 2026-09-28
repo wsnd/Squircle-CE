@@ -44,6 +44,39 @@ android {
             // wins by default; pickFirsts handles any remaining duplicates.
             pickFirsts += "**/liblocal-socket.so"
             pickFirsts += "**/libtermux.so"
+            // AndroidManifest sets android:extractNativeLibs="true", so the
+            // packaged jniLibs/<abi>/ directory is extracted to nativeLibraryDir
+            // at install time. Without useLegacyPackaging, AGP silently filters
+            // out anything not matching lib*.so and drops the Termux git
+            // binaries (git, git-upload-pack, scalar, curl, ...).
+            useLegacyPackaging = true
+
+            // Termux git binaries are rewritten with patchelf (rpath/needed/
+            // soname fixes) which appends an extra PT_LOAD segment. AGP's
+            // stripDebugSymbols (llvm-objcopy) then compacts the file layout
+            // and breaks PT_LOAD congruence (p_offset ≡ p_vaddr mod page size),
+            // so on-device bionic maps the segment shifted and every git/git-*
+            // invocation dies with a silent SIGSEGV. Skipping the strip for
+            // these files fixes it; Termux ships release binaries anyway.
+            // NOTE: must live in the app module — library-level
+            // keepDebugSymbols does not propagate to the app's strip task.
+            keepDebugSymbols += listOf(
+                "**/libgit*.so",
+                "**/libscalar*.so",
+                "**/libwcurl*.so",
+                "**/libcurl.so",
+                "**/libcrypto.so",
+                "**/libssl.so",
+                "**/libz.so",
+                "**/libexpat.so",
+                "**/libiconv.so",
+                "**/libcharset.so",
+                "**/libpcre2-*.so",
+                "**/libnghttp2.so",
+                "**/libnghttp3.so",
+                "**/libngtcp2*.so",
+                "**/libssh2.so",
+            )
         }
         resources {
             excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"

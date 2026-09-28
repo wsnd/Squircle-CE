@@ -16,6 +16,8 @@
 
 package com.blacksquircle.ui.feature.git.internal
 
+import android.content.Context
+import com.blacksquircle.ui.core.git.GitCommandRunner
 import com.blacksquircle.ui.core.provider.coroutine.DispatcherProvider
 import com.blacksquircle.ui.core.settings.SettingsManager
 import com.blacksquircle.ui.feature.git.data.repository.GitRepositoryImpl
@@ -29,12 +31,14 @@ internal object GitModule {
     @Provides
     @GitScope
     fun provideGitRepository(
+        context: Context,
         dispatcherProvider: DispatcherProvider,
         settingsManager: SettingsManager
     ): GitRepository {
         return GitRepositoryImpl(
             dispatcherProvider = dispatcherProvider,
-            settingsManager = settingsManager
+            settingsManager = settingsManager,
+            gitCommandRunner = GitCommandRunner(context),
         )
     }
 }

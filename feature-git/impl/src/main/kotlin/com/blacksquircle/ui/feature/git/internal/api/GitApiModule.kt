@@ -16,6 +16,8 @@
 
 package com.blacksquircle.ui.feature.git.internal.api
 
+import android.content.Context
+import com.blacksquircle.ui.core.git.GitCommandRunner
 import com.blacksquircle.ui.core.provider.coroutine.DispatcherProvider
 import com.blacksquircle.ui.core.settings.SettingsManager
 import com.blacksquircle.ui.feature.git.api.interactor.GitInteractor
@@ -34,16 +36,20 @@ object GitApiModule {
     @Provides
     @Singleton
     fun provideGitInteractor(
+        context: Context,
         dispatcherProvider: DispatcherProvider,
         settingsManager: SettingsManager,
     ): GitInteractor {
+        val gitCommandRunner = GitCommandRunner(context)
         val gitRepository = GitRepositoryImpl(
             dispatcherProvider = dispatcherProvider,
             settingsManager = settingsManager,
+            gitCommandRunner = gitCommandRunner,
         )
         return GitInteractorImpl(
             settingsManager = settingsManager,
             gitRepository = gitRepository,
+            gitCommandRunner = gitCommandRunner,
         )
     }
 

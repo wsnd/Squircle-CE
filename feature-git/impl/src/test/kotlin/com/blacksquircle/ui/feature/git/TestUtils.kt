@@ -16,8 +16,8 @@
 
 package com.blacksquircle.ui.feature.git
 
-import com.blacksquircle.ui.feature.git.domain.model.ChangeType
-import com.blacksquircle.ui.feature.git.domain.model.GitChange
+import com.blacksquircle.ui.feature.git.api.model.ChangeType
+import com.blacksquircle.ui.feature.git.api.model.GitChange
 
 internal fun createGitChange(
     name: String = "untitled.txt",

@@ -39,7 +39,7 @@ dependencies {
     implementation(project(":feature-git:api"))
     implementation(project(":filesystems:filesystem-local"))
 
-    implementation(libs.eclipse.jgit)
+    implementation(project(":core-git"))
 
     implementation(libs.google.dagger)
     ksp(libs.google.dagger.compiler)

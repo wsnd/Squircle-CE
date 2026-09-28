@@ -17,6 +17,7 @@
 package com.blacksquircle.ui.feature.terminal.data.manager
 
 import android.content.Context
+import com.blacksquircle.ui.core.git.GitBinary
 import com.blacksquircle.ui.feature.python.PythonStdlibExtractor
 import com.blacksquircle.ui.feature.terminal.api.model.RuntimeType
 import com.blacksquircle.ui.feature.terminal.api.model.ShellArgs
@@ -70,7 +71,7 @@ internal class SessionManagerImpl(
         if (runtime.type == RuntimeType.PYTHON || args?.isPythonRepl == true) {
             return createPythonReplSession(sessionId, runtime, client, commands, args)
         }
-        
+
         val environment = HashMap<String, String>()
         setupCommonEnvironment(environment, runtime)
         
@@ -107,7 +108,7 @@ internal class SessionManagerImpl(
             File(nativeLibDir, "python3"),
             File(nativeLibDir, "python")
         )
-        
+
         val pythonExe = candidates.find { it.exists() }
 
         try {
@@ -115,7 +116,7 @@ internal class SessionManagerImpl(
                 if (!pythonExe.canExecute()) {
                     pythonExe.setExecutable(true)
                 }
-                
+
                 val links = listOf("python", "python3", "python3.14")
                 links.forEach { name ->
                     val link = File(binDir, name)
@@ -128,6 +129,9 @@ internal class SessionManagerImpl(
                     }
                 }
             }
+            // Git binaries live in :core-git now, so the shell and the Git
+            // panel share exactly the same executables and helpers.
+            GitBinary.install(context)
             setupBuildShims(binDir)
         } catch (e: Exception) {
             Timber.e(e, "Failed to setup bin directory")
@@ -162,11 +166,19 @@ internal class SessionManagerImpl(
         env[ENV_TMPDIR] = runtime.tmpDir
         env[ENV_COLORTERM] = DEFAULT_COLOR
         env[ENV_TERM] = DEFAULT_TERM
+        // No pager binary is bundled, and the inherited environment may point
+        // PAGER at a program that does not exist ("pager"), which makes tools
+        // like git fail with "unable to execute pager". Output is scrolled by
+        // the terminal itself, so plain cat is the right behaviour here.
+        // GIT_PAGER is set as well because it takes precedence over a
+        // core.pager entry in the user's gitconfig.
+        env["PAGER"] = DEFAULT_PAGER
+        env["GIT_PAGER"] = DEFAULT_PAGER
 
         val binDir = File(context.filesDir, "bin").absolutePath
         val systemPath = "/system/bin:/system/xbin"
         val currentPath = System.getenv(ENV_PATH).orEmpty()
-        
+
         // Ensure binDir is first, but also include essential system paths
         env[ENV_PATH] = if (currentPath.isEmpty()) {
             "$binDir:$systemPath"
@@ -174,11 +186,69 @@ internal class SessionManagerImpl(
             "$binDir:$systemPath:$currentPath"
         }
 
+        // Make native libs (libssl, libcrypto, libpcre2, libcurl, ...) discoverable
+        // to dynamically-linked executables bundled in nativeLibraryDir — primarily
+        // the Termux-built git binaries whose RUNPATH points at the Termux prefix.
+        val nativeLibDir = context.applicationInfo.nativeLibraryDir
+        val currentLdPath = System.getenv("LD_LIBRARY_PATH").orEmpty()
+        env["LD_LIBRARY_PATH"] = if (currentLdPath.isEmpty()) {
+            "$nativeLibDir:/system/lib64:/system/lib"
+        } else {
+            "$nativeLibDir:$currentLdPath"
+        }
+
         putToEnvIfInSystemEnv(env, "ANDROID_ASSETS")
         putToEnvIfInSystemEnv(env, "ANDROID_DATA")
         putToEnvIfInSystemEnv(env, "ANDROID_ROOT")
         putToEnvIfInSystemEnv(env, "ANDROID_STORAGE")
         putToEnvIfInSystemEnv(env, "EXTERNAL_STORAGE")
+
+        setupPythonEnvironment(env)
+    }
+
+    /**
+     * Expose the bundled CPython runtime to every shell session, not just the
+     * Python REPL — scripts can be launched by invoking libpython_exe.so
+     * directly from the terminal, and pip must resolve its site-level config
+     * (pip.conf) from sys.prefix in that case too.
+     *
+     * Note: this only sets the variables when the standard library has already
+     * been extracted on this device; forcing extraction here would block
+     * terminal startup with ~260MB of I/O.
+     */
+    private fun setupPythonEnvironment(env: HashMap<String, String>) {
+        val pythonHome = File(context.filesDir, "python")
+        if (!pythonHome.exists()) return
+
+        val pythonHomePath = pythonHome.absolutePath
+        val stdlib = "$pythonHomePath/lib/python3.14"
+        val sitePackages = "$stdlib/site-packages"
+
+        env["PYTHONHOME"] = pythonHomePath
+        env["PYTHONPATH"] = "$stdlib:$stdlib/lib-dynload:$sitePackages"
+        // pip reads its config from $PIP_CONFIG_DIR/pip.conf before looking at
+        // sys.prefix — set explicitly so index configuration applies no matter
+        // how the interpreter is launched.
+        env["PIP_CONFIG_DIR"] = pythonHomePath
+        // pip installs console scripts (f2py, numpy-config, ...) into
+        // $PYTHONHOME/bin — expose them and silence pip's script-location warning.
+        val currentPath = env[ENV_PATH].orEmpty()
+        env[ENV_PATH] = if (currentPath.isEmpty()) {
+            "$pythonHomePath/bin"
+        } else {
+            "$pythonHomePath/bin:$currentPath"
+        }
+        // Native dependencies with version-suffixed file names (libjpeg.so.8,
+        // libz.so.1, libxml2.so.16, ...) cannot be packaged into nativeLibraryDir
+        // because AGP keeps only *.so from jniLibs, so the extractor unpacks
+        // them into $PYTHONHOME/lib — add it to the linker search path.
+        val depsLibDir = "$pythonHomePath/lib"
+        val currentLdPath = env["LD_LIBRARY_PATH"].orEmpty()
+        env["LD_LIBRARY_PATH"] = if (currentLdPath.isEmpty()) {
+            "$depsLibDir:/system/lib64:/system/lib"
+        } else {
+            "$depsLibDir:$currentLdPath"
+        }
     }
 
     override fun closeSession(sessionId: String) {
@@ -223,7 +293,7 @@ internal class SessionManagerImpl(
                 fi
                 
                 pip() {
-                    python -m pip "$dollarSign@" --index-url https://anshdadwal.is-a.dev/p4a-wheels/p4a/ --extra-index-url https://pypi.org/simple --only-binary=:all:
+                    python -m pip "$dollarSign@" --extra-index-url https://anshdadwal.is-a.dev/p4a-wheels/p4a/
                 }
                 
                 export PS1='${dollarSign}{PWD##*/} ${dollarSign}'
@@ -247,9 +317,13 @@ internal class SessionManagerImpl(
         val sitePackages = "$pythonPath/lib/python3.14/site-packages"
         environment["PYTHONHOME"] = pythonPath ?: ""
         environment["PYTHONPATH"] = "$pythonPath/lib/python3.14:$pythonPath/lib/python3.14/lib-dynload:$sitePackages"
+        environment["PIP_CONFIG_DIR"] = pythonPath ?: ""
         
-        // CRITICAL: Include system library paths to ensure libc and other system libs are found
-        environment["LD_LIBRARY_PATH"] = "$nativeLibDir:$pythonPath/lib/python3.14/lib-dynload:/system/lib64:/system/lib"
+        // CRITICAL: Include system library paths to ensure libc and other system libs are found.
+        // $pythonPath/lib holds the version-suffixed native dependencies unpacked
+        // from assets (AGP drops them from jniLibs because they are not *.so).
+        environment["LD_LIBRARY_PATH"] =
+            "$nativeLibDir:$pythonPath/lib:$pythonPath/lib/python3.14/lib-dynload:/system/lib64:/system/lib"
 
         environment["PYTHONUNBUFFERED"] = "1"
         environment["ENV"] = initScript.absolutePath
@@ -286,5 +360,6 @@ internal class SessionManagerImpl(
         private const val DEFAULT_LANG = "en_US.UTF-8"
         private const val DEFAULT_COLOR = "truecolor"
         private const val DEFAULT_TERM = "xterm-256color"
+        private const val DEFAULT_PAGER = "cat"
     }
 }

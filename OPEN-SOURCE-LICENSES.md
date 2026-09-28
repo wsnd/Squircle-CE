@@ -28,6 +28,31 @@ Build scripts are available in our GitHub repository.
 - **Copyright:** Python Software Foundation
 - **Website:** https://www.python.org/
 
+### Git Command-Line Tool (bundled for in-app terminal)
+- **License:** GNU General Public License v2 (GPL-2.0)
+- **Copyright:** Junio C Hamano and the Git contributors
+- **Website:** https://git-scm.com/
+- **Source:** https://github.com/git/git
+- **Binary distribution:** Pre-built ELFs and shared libraries are taken
+  from the [Termux](https://termux.dev/) apt repository
+  (`packages/git` and its dependencies: `pcre2`, `curl`, `openssl`,
+  `zlib`, `expat`, `libiconv`). Each dependency retains its original
+  license:
+
+  | Component | License | Upstream |
+  |---|---|---|
+  | git | GPL-2.0 | https://git-scm.com/ |
+  | libpcre2 | BSD-3-Clause | https://www.pcre.org/ |
+  | libcurl | MIT (curl) / ISC (c-ares) | https://curl.se/ |
+  | OpenSSL | OpenSSL / SSLeay | https://www.openssl.org/ |
+  | zlib | Zlib | https://zlib.net/ |
+  | Expat | MIT | https://libexpat.github.io/ |
+  | libiconv | LGPL-2.1+ | https://www.gnu.org/software/libiconv/ |
+
+  Per GPL-2.0, the source code for `git` itself is available at
+  https://github.com/git/git and may be obtained on request from the
+  project maintainers.
+
 ---
 
 ## Major Dependencies
@@ -38,8 +63,13 @@ We use many excellent open source libraries including:
 - **Room** (Apache 2.0) - Database
 - **Kotlin Coroutines** (Apache 2.0) - Asynchronous programming
 - **Timber** (Apache 2.0) - Logging
-- **JGit** (BSD) - Git implementation
+- **Git** (GPL-2.0) - Bundled as Termux-built binaries (`libgit.so` and helpers
+  in `:core-git`), used by both the terminal and the Git panel
 - **ColorPicker** (MIT) - Color selection
+- **OpenBLAS** (BSD 3-Clause) - Bundled as `libopenblas.so` (Termux build), required by
+  precompiled Android wheels such as NumPy
+- **libc++** (Apache 2.0 with LLVM Exceptions) - Shipped as `libc++_shared.so`
+  from the NDK `c++_shared` STL; C++ runtime required by precompiled wheels
 - And many more...
 
 For complete license information, please see the full THIRD-PARTY-LICENSES

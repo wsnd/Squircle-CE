@@ -55,16 +55,6 @@ The following libraries are licensed under MIT License:
 
 The following libraries are licensed under BSD-style licenses:
 
-### JGit (Eclipse)
-- Repository: https://github.com/eclipse-jgit/jgit
-- Copyright: Eclipse Foundation
-- License: Eclipse Distribution License 1.0 (BSD-3-Clause)
-
-### JSch
-- Repository: http://www.jcraft.com/jsch/
-- Copyright: ymnk, JCraft, Inc.
-- License: BSD-style
-
 ---
 
 ## GNU Lesser General Public License v2.1 (LGPL-2.1)
@@ -113,14 +103,66 @@ individual module documentation for details.
 
 ---
 
+## Native Runtime Libraries for Precompiled Python Wheels
+
+Precompiled Android wheels (PEP 738 tags such as `android_24_arm64_v8a`,
+served by community indexes configured in `pip.conf`) link against shared
+libraries from the Termux distribution. The libraries below are shipped inside
+the APK (`feature-python/src/main/jniLibs/`) and are loaded only when a Python
+package that requires them is imported.
+
+| Library | License |
+|---------|---------|
+| libopenblas.so (OpenBLAS) | BSD-3-Clause |
+| libc++_shared.so (LLVM libc++) | Apache 2.0 with LLVM Exceptions — provided by the NDK `c++_shared` STL, do not duplicate it in `jniLibs` |
+| libandroid-support.so (Termux) | See https://github.com/termux/termux-packages |
+| libz.so.1 (zlib) | zlib License |
+| libbz2.so.1.0 (bzip2) | BSD-style (bzip2 License) |
+| liblzma.so.5 (XZ Utils) | 0BSD / public domain |
+| libzstd.so.1 (Zstandard) | BSD-3-Clause (dual-licensed, used under BSD) |
+| libpng16.so (libpng) | PNG Reference Library License (zlib-style) |
+| libfreetype.so (FreeType) | FreeType License (FTL) |
+| libjpeg.so.8 (libjpeg-turbo) | BSD-3-Clause / IJG |
+| libtiff.so (libtiff) | libtiff License (MIT-style) |
+| libwebp.so, libwebpmux.so, libwebpdemux.so, libsharpyuv.so (libwebp 1.5.0, rebuilt from upstream sources with `-Wl,-z,max-page-size=16384` for 16KB page devices) | BSD-3-Clause |
+| libopenjp2.so (OpenJPEG) | BSD-2-Clause |
+| liblcms2.so (Little CMS) | MIT |
+| libxcb.so, libXau.so, libXdmcp.so | MIT |
+| libraqm.so | MIT |
+| libharfbuzz.so (HarfBuzz) | MIT (Old MIT) |
+| libgraphite2.so (Graphite2) | LGPL-2.1-or-later / MPL-1.1 |
+| libglib-2.0.so.0 (GLib) | LGPL-2.1-or-later |
+| libfribidi.so (FriBidi) | LGPL-2.1-or-later |
+| libpcre2-8.so (PCRE2) | BSD-3-Clause |
+| libxml2.so.16, libxslt.so, libexslt.so | MIT |
+| libyaml-0.so (libyaml) | MIT |
+| libffi.so (libffi) | MIT |
+| liblz4.so (LZ4) | BSD-2-Clause |
+| libsodium.so (libsodium) | ISC |
+| libzmq.so (ZeroMQ / libzmq) | MPL-2.0 |
+
+`libiconv.so` and `libpcre2-8.so` are already provided by the bundled git
+binaries in the terminal module and are therefore not duplicated here.
+
+**GPL-3.0 notice:** `libimagequant.so` (pngquant) is required by Pillow's core
+`_imaging` extension and is dual-licensed under **GPL-3.0-or-later** or a
+commercial license. Bundling it in an Apache-2.0 application requires either
+accepting GPL-3.0 for the combined work or obtaining a commercial license from
+pngquant. Remove `libimagequant.so` from `jniLibs` if this is not acceptable —
+Pillow will then fail to import, which is the trade-off.
+
+---
+
 ## Summary
 
 | License | Libraries |
 |---------|-----------|
 | Apache 2.0 | Dagger, Retrofit, Room, Kotlin Coroutines, Timber, and others |
-| MIT | ColorPicker, Zip4j |
-| BSD | JGit, JSch |
-| LGPL v2.1 | Sora Editor |
+| MIT | ColorPicker, Zip4j, libxml2, libxslt, HarfBuzz, libraqm, and others |
+| BSD | OpenBLAS, libjpeg-turbo, libwebp, liblz4, and others |
+| LGPL v2.1 | Sora Editor, GLib, FriBidi, Graphite2 |
+| MPL 2.0 | libzmq |
+| GPL 3.0 | libimagequant (optional — see notice above) |
 | PSF License | Python Runtime |
 | EPL 2.0 | Some Eclipse components (if applicable) |
 

@@ -31,6 +31,33 @@ object PythonStdlibExtractor {
     private const val TAG = "PythonStdlibExtractor"
     private const val ASSET_PATH = "python3.14"
     private const val PYTHON_DIR_NAME = "python"
+
+    // Native dependencies whose file names carry a version suffix
+    // (libjpeg.so.8, libz.so.1, libxml2.so.16, ...). AGP only packages *.so
+    // files from jniLibs into nativeLibraryDir and silently drops the rest,
+    // but Android's linker resolves DT_NEEDED entries by exact file name —
+    // so these are shipped as assets and unpacked into $PYTHONHOME/lib,
+    // which is added to LD_LIBRARY_PATH (see SessionManagerImpl and
+    // python_repl_native.cpp).
+    private const val NATIVE_LIB_ASSET_PATH = "nativelibs"
+
+    // Bump to force re-extraction of the standard library after app updates
+    // (assets may carry new/changed files such as the ensurepip wheel).
+    private const val EXTRACTION_VERSION = 4
+    
+    /**
+     * Preconfigured pip settings, installed to $PYTHONHOME/pip.conf (pip's
+     * site-level config location, resolved from sys.prefix). Adds two
+     * community indexes with precompiled Android wheels (PEP 738 tags like
+     * android_24_arm64_v8a) so that heavy packages such as numpy install
+     * instantly instead of failing on missing manylinux wheels.
+     */
+    private val PIP_CONFIG = """
+        [global]
+        extra-index-url =
+            https://nsyhykui.github.io/python_wheels_for_termux/simple/
+            https://termux-user-repository.github.io/pypi/
+    """.trimIndent() + "\n"
     
     /**
      * Extract Python standard library if not already extracted
@@ -44,10 +71,13 @@ object PythonStdlibExtractor {
         
         // Check if correct architecture is already extracted
         val abi = android.os.Build.SUPPORTED_ABIS[0]
-        val markerFile = File(pythonDir, "extracted_$abi")
+        val markerFile = File(pythonDir, "extracted_v${EXTRACTION_VERSION}_$abi")
         
         if (markerFile.exists()) {
             Log.i(TAG, "Python stdlib for $abi already extracted at: ${pythonDir.absolutePath}")
+            // pip.conf is refreshed on every launch so index changes in app
+            // updates take effect without bumping EXTRACTION_VERSION.
+            writePipConfig(pythonDir)
             return pythonDir.absolutePath
         }
 
@@ -90,8 +120,13 @@ object PythonStdlibExtractor {
                 }
             }
 
+            // Unpack versioned native dependencies into $PYTHONHOME/lib
+            extractNativeLibraries(context, pythonDir)
+
             // Marker for successful extraction
             markerFile.createNewFile()
+
+            writePipConfig(pythonDir)
 
             val resultPath = pythonDir.absolutePath
             Log.i(TAG, "Python stdlib copied successfully to: $resultPath")
@@ -99,6 +134,56 @@ object PythonStdlibExtractor {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to copy Python stdlib: ${e.message}", e)
             return null
+        }
+    }
+    
+    /**
+     * Copy the ABI-specific native dependencies bundled as assets into
+     * $PYTHONHOME/lib. These keep their versioned file names on purpose:
+     * that is exactly what the wheel's DT_NEEDED entries ask the linker for.
+     */
+    private fun extractNativeLibraries(context: Context, pythonDir: File) {
+        val abi = android.os.Build.SUPPORTED_ABIS[0]
+        val assetDir = "$NATIVE_LIB_ASSET_PATH/$abi"
+        val names = try {
+            context.assets.list(assetDir)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to list $assetDir: ${e.message}")
+            null
+        }
+
+        if (names.isNullOrEmpty()) {
+            Log.w(TAG, "No bundled native dependencies for $abi (expected $assetDir)")
+            return
+        }
+
+        val libDir = File(pythonDir, "lib")
+        if (!libDir.exists()) {
+            libDir.mkdirs()
+        }
+        for (name in names) {
+            try {
+                context.assets.open("$assetDir/$name").use { input ->
+                    File(libDir, name).outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to extract native library $name: ${e.message}")
+            }
+        }
+        Log.i(TAG, "Extracted ${names.size} native dependencies into ${libDir.absolutePath}")
+    }
+
+    /**
+     * Write the preconfigured pip.conf to the Python home directory.
+     * Best-effort: pip still works with stock PyPI if this fails.
+     */
+    private fun writePipConfig(pythonDir: File) {
+        try {
+            File(pythonDir, "pip.conf").writeText(PIP_CONFIG)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to write pip.conf: ${e.message}")
         }
     }
     

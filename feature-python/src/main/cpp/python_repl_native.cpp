@@ -85,7 +85,17 @@ Java_com_blacksquircle_ui_feature_python_PythonReplNative_createPythonRepl(
         ioctl(pts, TIOCSCTTY, 0);
         
         setenv("PYTHONHOME", py_home, 1);
-        setenv("LD_LIBRARY_PATH", lib_path, 1);
+
+        // $PYTHONHOME/lib holds native libraries whose file names carry a
+        // version suffix (libjpeg.so.8, libz.so.1, libxml2.so.16, ...). AGP
+        // only packages *.so from jniLibs into nativeLibraryDir, and Android's
+        // linker resolves DT_NEEDED entries by file name, so those deps are
+        // shipped as assets and unpacked into $PYTHONHOME/lib instead — the
+        // linker has to be pointed at it explicitly.
+        char ld_library_path[4096];
+        snprintf(ld_library_path, sizeof(ld_library_path),
+                 "%s:%s/lib:/system/lib64:/system/lib", lib_path, py_home);
+        setenv("LD_LIBRARY_PATH", ld_library_path, 1);
 
         char python_path_env[4096];
         // The standard library is now at $PYTHONHOME/lib/python3.14/
@@ -94,11 +104,14 @@ Java_com_blacksquircle_ui_feature_python_PythonReplNative_createPythonRepl(
                  py_home, py_home, py_home);
         setenv("PYTHONPATH", python_path_env, 1);
         setenv("TERM", "xterm-256color", 1);
+        // No pager binary is bundled — see SessionManagerImpl for details.
+        setenv("PAGER", "cat", 1);
+        setenv("GIT_PAGER", "cat", 1);
 
         LOGI("Child Process: Executing %s", py_path);
         LOGI("PYTHONHOME=%s", py_home);
         LOGI("PYTHONPATH=%s", python_path_env);
-        LOGI("LD_LIBRARY_PATH=%s", lib_path);
+        LOGI("LD_LIBRARY_PATH=%s", ld_library_path);
 
         const char* python_args[] = { py_path, "-i", NULL };
         execv(py_path, (char* const*)python_args);

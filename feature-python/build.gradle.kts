@@ -182,8 +182,15 @@ if (pythonPrefixes.isNotEmpty() && pythonVersion != null) {
                     from("$prefix/lib")
                     include("libpython*.*.so")
                     include("libpython*.so")
-                    include("libcrypto*.so")
-                    include("libssl*.so")
+                    // Only the *_python.so variants go to jniLibs — cpython's
+                    // prefix ships libcrypto.so/libssl.so as symlinks pointing
+                    // at the same lib*_python.so content (SONAME
+                    // libcrypto_python.so / libssl_python.so). The unversioned
+                    // filenames conflict with feature-terminal's git deps,
+                    // which need standard OpenSSL SONAMEs (libcrypto.so.3 /
+                    // libssl.so.3) at the libcrypto.so path.
+                    include("libcrypto_python.so")
+                    include("libssl_python.so")
                     include("libsqlite*.so")
                     include("lib*_python.so")
                 }

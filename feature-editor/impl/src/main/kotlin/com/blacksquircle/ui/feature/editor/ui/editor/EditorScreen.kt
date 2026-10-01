@@ -405,7 +405,9 @@ private fun EditorScreen(
     val currentBottomHeight by rememberUpdatedState(bottomPanelHeight)
     val currentOnBottomHeightChanged by rememberUpdatedState(onBottomPanelHeightChanged)
 
-    Row(modifier = Modifier.fillMaxSize()) {
+    // The window is edge to edge, so the system no longer resizes it for the
+    // keyboard: without this the IME covers the bottom panel and the status bar.
+    Row(modifier = Modifier.fillMaxSize().imePadding()) {
         if (isTablet) {
             NavigationRail(
                 footer = {

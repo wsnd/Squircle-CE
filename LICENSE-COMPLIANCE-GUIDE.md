@@ -190,6 +190,15 @@ fun LicenseScreen() {
 - ✅ Acknowledge Python Software Foundation
 - ✅ Python is open source, no restrictions
 
+### For GPL-2.0 (bundled Git command-line tool):
+- ✅ Ship unmodified upstream binaries (Termux builds)
+- ✅ Run as a separate process — no linking, no derivative work (mere
+  aggregation, so the app stays Apache-2.0)
+- ✅ Provide the source: https://github.com/git/git plus a written offer
+  from the maintainers
+- ✅ Mention it in NOTICE, THIRD-PARTY-LICENSES and the store listing
+- ❌ NOT required: release the app itself under GPL
+
 ### For MIT/BSD libraries:
 - ✅ Include copyright notices
 - ✅ Include license text

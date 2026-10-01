@@ -23,6 +23,7 @@ Squircle CE is an open source application built with the following technologies:
 • Licensed under Apache License 2.0
 • Uses Sora Editor (LGPL v2.1) - https://github.com/Rosemoe/sora-editor
 • Includes Python runtime - https://www.python.org/
+• Includes the Git command-line tool (GPL v2.0) - https://git-scm.com/
 • Built with modern Android technologies (Kotlin, Jetpack Compose, etc.)
 
 Source code available at: https://github.com/black-squircle/squircle-ce
@@ -79,12 +80,17 @@ A: Yes. Full source code is available on GitHub:
    https://github.com/black-squircle/squircle-ce
 
 **Q: Are there any GPL components that would require open sourcing the app?**
-A: No. While we use LGPL (Sora Editor), this does NOT require our app to be
-open source. LGPL only requires:
+A: We bundle the `git` command-line tool (GPL v2.0), but it is executed as an
+independent program over stdin/stdout and is not linked into the app, so this
+is mere aggregation and does not place the application code under GPL.
+GPL-2.0 requires us to make the source of that program available, which we do:
+   - https://github.com/git/git (upstream sources)
+   - Available on request from this project's maintainers
+LGPL (Sora Editor) additionally requires:
    - Allow library replacement (we do)
    - Provide build scripts (we do)
    - If we modified the library, share those changes (we didn't modify it)
-Our app code can remain closed source while being fully compliant.
+Our app code can remain Apache-2.0 while being fully compliant.
 
 ---
 
@@ -103,6 +109,7 @@ This app is licensed under Apache License 2.0.
 It uses the following open source libraries:
 • Sora Editor - LGPL v2.1
 • Python Runtime - PSF License
+• Git - GPL v2.0
 • And many others...
 
 View full source code:

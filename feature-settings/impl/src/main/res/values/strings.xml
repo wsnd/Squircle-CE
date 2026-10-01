@@ -186,7 +186,8 @@
     <string name="licenses_retrofit" translatable="false">Retrofit</string>
     <string name="licenses_room" translatable="false">Room</string>
     <string name="licenses_kotlin_coroutines" translatable="false">Kotlin Coroutines</string>
-    <string name="licenses_jgit" translatable="false">JGit</string>
+    <string name="licenses_git" translatable="false">Git</string>
+    <string name="licenses_gpl_notice">The bundled Git command-line tool is licensed under GPL v2.0. It runs as a separate program and the app does not link against it, so the application code remains under Apache License 2.0. Git sources are available at https://github.com/git/git.</string>
     <string name="licenses_timber" translatable="false">Timber</string>
 
     <string name="settings_category_contribute">Contribute</string>

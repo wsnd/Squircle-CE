@@ -28,26 +28,33 @@ Build scripts are available in our GitHub repository.
 - **Copyright:** Python Software Foundation
 - **Website:** https://www.python.org/
 
-### Git Command-Line Tool (bundled for in-app terminal)
+### Git Command-Line Tool (bundled for the terminal and the Git panel)
+- **Version:** 2.55.0
 - **License:** GNU General Public License v2 (GPL-2.0)
 - **Copyright:** Junio C Hamano and the Git contributors
 - **Website:** https://git-scm.com/
 - **Source:** https://github.com/git/git
 - **Binary distribution:** Pre-built ELFs and shared libraries are taken
-  from the [Termux](https://termux.dev/) apt repository
-  (`packages/git` and its dependencies: `pcre2`, `curl`, `openssl`,
-  `zlib`, `expat`, `libiconv`). Each dependency retains its original
-  license:
+  from the [Termux](https://termux.dev/) apt repository (`git` and its
+  dependencies). The executables live in `:core-git`, their shared
+  libraries in `:feature-terminal`. Squircle CE runs them as separate
+  processes and does not link against them, so the app itself remains
+  Apache-2.0 (see THIRD-PARTY-LICENSES). Each dependency retains its
+  original license:
 
-  | Component | License | Upstream |
-  |---|---|---|
-  | git | GPL-2.0 | https://git-scm.com/ |
-  | libpcre2 | BSD-3-Clause | https://www.pcre.org/ |
-  | libcurl | MIT (curl) / ISC (c-ares) | https://curl.se/ |
-  | OpenSSL | OpenSSL / SSLeay | https://www.openssl.org/ |
-  | zlib | Zlib | https://zlib.net/ |
-  | Expat | MIT | https://libexpat.github.io/ |
-  | libiconv | LGPL-2.1+ | https://www.gnu.org/software/libiconv/ |
+  | Component | Version | License | Upstream |
+  |---|---|---|---|
+  | git | 2.55.0 | GPL-2.0 | https://git-scm.com/ |
+  | libpcre2 | 10.47 | BSD-3-Clause | https://www.pcre.org/ |
+  | libcurl / libwcurl | 8.22.0 | curl License (MIT/X11-style) | https://curl.se/ |
+  | libssh2 | 1.11.1 | BSD-3-Clause | https://www.libssh2.org/ |
+  | libnghttp2 (HTTP/2) | 1.70.0 | MIT | https://nghttp2.org/ |
+  | libnghttp3 (HTTP/3) | 1.18.0 | MIT | https://github.com/ngtcp2/nghttp3 |
+  | libngtcp2 (QUIC) | 1.25.0 | MIT | https://github.com/ngtcp2/ngtcp2 |
+  | OpenSSL | 3.6.3 | Apache-2.0 | https://www.openssl.org/ |
+  | zlib | — | Zlib | https://zlib.net/ |
+  | Expat | 2.8.5 | MIT | https://libexpat.github.io/ |
+  | libiconv / libcharset | — | LGPL-2.1+ | https://www.gnu.org/software/libiconv/ |
 
   Per GPL-2.0, the source code for `git` itself is available at
   https://github.com/git/git and may be obtained on request from the

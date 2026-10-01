@@ -81,6 +81,54 @@ under Apache License 2.0 and is not subject to LGPL's copyleft provisions.
 
 ---
 
+## GNU General Public License v2.0 (GPL-2.0)
+
+The following component is licensed under GPL v2.0:
+
+### Git (command-line tool)
+- Version: 2.55.0
+- Repository: https://github.com/git/git
+- Copyright: Junio C Hamano and the Git contributors
+- License: GNU General Public License v2.0
+- Website: https://git-scm.com/
+
+Both the in-app terminal and the Git panel run `git` as a separate program. The
+executables are shipped as `libgit*.so`, `libscalar*.so`, `libcurl*.so`,
+`libwcurl*.so` and `libgit-askpass*.so` under
+`core-git/src/main/jniLibs/<abi>/` and are symlinked to their canonical names
+(`git`, `git-upload-pack`, `git-receive-pack`, `scalar`, `curl`, ...) in the
+app's private files directory at runtime. Squircle CE only exchanges data with
+them over process stdin/stdout; it neither links against them nor contains
+derivative work of them. This is mere aggregation, so the application itself
+remains under Apache License 2.0 while the bundled `git` executables stay under
+GPL-2.0.
+
+The binaries are unmodified builds taken from the
+[Termux](https://termux.dev/) apt repository. Per GPL-2.0, the corresponding
+source code is published at https://github.com/git/git and can also be
+requested from the maintainers of this project.
+
+Their dynamically linked dependencies are shipped in
+`feature-terminal/impl/src/main/jniLibs/<abi>/` and keep their own licenses:
+
+| Library | Version | License |
+|---------|---------|---------|
+| libpcre2-8.so, libpcre2-16.so, libpcre2-32.so, libpcre2-posix.so (PCRE2) | 10.47 | BSD-3-Clause |
+| libcurl.so, libwcurl.so (curl) | 8.22.0 | curl License (MIT/X11-style) |
+| libssh2.so (libssh2) | 1.11.1 | BSD-3-Clause |
+| libnghttp2.so (nghttp2) | 1.70.0 | MIT |
+| libnghttp3.so (nghttp3) | 1.18.0 | MIT |
+| libngtcp2.so, libngtcp2_crypto_ossl.so (ngtcp2) | 1.25.0 | MIT |
+| libcrypto.so, libssl.so (OpenSSL) | 3.6.3 | Apache-2.0 |
+| libexpat.so (Expat) | 2.8.5 | MIT |
+| libz.so (zlib) | — | zlib License |
+| libiconv.so, libcharset.so (GNU libiconv) | — | LGPL-2.1-or-later |
+
+Full license text available at:
+https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+
+---
+
 ## Python Software Foundation License
 
 ### Python Runtime
@@ -93,13 +141,6 @@ Python is open source and can be freely used, modified, and distributed.
 
 Full license text available at:
 https://docs.python.org/3/license.html
-
----
-
-## Eclipse Public License 2.0 (EPL-2.0)
-
-Some Eclipse-related components may be licensed under EPL-2.0. Please check
-individual module documentation for details.
 
 ---
 
@@ -140,9 +181,20 @@ package that requires them is imported.
 | liblz4.so (LZ4) | BSD-2-Clause |
 | libsodium.so (libsodium) | ISC |
 | libzmq.so (ZeroMQ / libzmq) | MPL-2.0 |
+| libbrotlicommon.so, libbrotlidec.so (Brotli) | MIT |
+| libsqlite3.so, libsqlite3.so.0 (SQLite) | Public domain (SQLite Blessing) |
+| libcrypto_python.so, libssl_python.so (OpenSSL built for CPython, renamed so it cannot clash with the OpenSSL shipped for git) | Apache-2.0 |
+| libpython3.14.so, libpython3.so, libpython_exe.so (CPython interpreter) | Python Software Foundation License 2.0 |
 
 `libiconv.so` and `libpcre2-8.so` are already provided by the bundled git
 binaries in the terminal module and are therefore not duplicated here.
+
+Libraries whose upstream file name carries a version suffix (`libz.so.1`,
+`libbz2.so.1.0`, `liblzma.so.5`, `libzstd.so.1`, `libjpeg.so.8`,
+`libxml2.so.16`, `libglib-2.0.so.0`, `libsqlite3.so.0`) cannot be packaged by
+AGP, so they are shipped as assets under
+`feature-python/src/main/assets/nativelibs/<abi>/` and unpacked into
+`$PYTHONHOME/lib` on first launch.
 
 **GPL-3.0 notice:** `libimagequant.so` (pngquant) is required by Pillow's core
 `_imaging` extension and is dual-licensed under **GPL-3.0-or-later** or a
@@ -160,11 +212,13 @@ Pillow will then fail to import, which is the trade-off.
 | Apache 2.0 | Dagger, Retrofit, Room, Kotlin Coroutines, Timber, and others |
 | MIT | ColorPicker, Zip4j, libxml2, libxslt, HarfBuzz, libraqm, and others |
 | BSD | OpenBLAS, libjpeg-turbo, libwebp, liblz4, and others |
-| LGPL v2.1 | Sora Editor, GLib, FriBidi, Graphite2 |
+| LGPL v2.1 | Sora Editor, GLib, FriBidi, Graphite2, GNU libiconv |
 | MPL 2.0 | libzmq |
+| GPL 2.0 | Git (bundled as a separate command-line program — see above) |
 | GPL 3.0 | libimagequant (optional — see notice above) |
 | PSF License | Python Runtime |
-| EPL 2.0 | Some Eclipse components (if applicable) |
+| Apache 2.0 (other) | OpenSSL 3.x (both copies), and others |
+| Public domain | SQLite |
 
 ---
 
@@ -179,4 +233,4 @@ through the project repository or open an issue on GitHub.
 accurate and up-to-date license information, please refer to the official
 repositories of each library.
 
-Last updated: 2024
+Last updated: 2026

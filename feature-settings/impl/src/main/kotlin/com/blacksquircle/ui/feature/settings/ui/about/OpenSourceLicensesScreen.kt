@@ -87,135 +87,141 @@ private fun OpenSourceLicensesScreen(
                 .padding(horizontal = 16.dp)
         ) {
             Spacer(Modifier.height(8.dp))
-            
+
             // App Information
             Text(
                 text = stringResource(R.string.licenses_app_title),
                 style = SquircleTheme.typography.text16Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            
+
             Text(
                 text = stringResource(R.string.licenses_app_description),
                 style = SquircleTheme.typography.text14Regular,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
-            
+
             HorizontalDivider()
             Spacer(Modifier.height(16.dp))
-            
+
             // Core Components
             PreferenceGroup(
                 title = stringResource(R.string.licenses_core_components)
             )
-            
+
             LicenseItem(
                 name = stringResource(R.string.licenses_sora_editor),
                 license = "LGPL v2.1",
                 copyright = "Rosemoe",
                 url = "https://github.com/Rosemoe/sora-editor"
             )
-            
+
             LicenseItem(
                 name = stringResource(R.string.licenses_python_runtime),
                 license = "PSF License",
                 copyright = "Python Software Foundation",
                 url = "https://www.python.org/"
             )
-            
+
             HorizontalDivider()
             Spacer(Modifier.height(16.dp))
-            
+
             // Major Dependencies
             PreferenceGroup(
                 title = stringResource(R.string.licenses_major_dependencies)
             )
-            
+
             LicenseItem(
                 name = stringResource(R.string.licenses_dagger),
                 license = "Apache 2.0",
                 copyright = "Google",
                 url = "https://github.com/google/dagger"
             )
-            
+
             LicenseItem(
                 name = stringResource(R.string.licenses_retrofit),
                 license = "Apache 2.0",
                 copyright = "Square",
                 url = "https://github.com/square/retrofit"
             )
-            
+
             LicenseItem(
                 name = stringResource(R.string.licenses_room),
                 license = "Apache 2.0",
                 copyright = "Android Open Source Project",
                 url = "https://developer.android.com/jetpack/androidx/releases/room"
             )
-            
+
             LicenseItem(
                 name = stringResource(R.string.licenses_kotlin_coroutines),
                 license = "Apache 2.0",
                 copyright = "JetBrains",
                 url = "https://github.com/Kotlin/kotlinx.coroutines"
             )
-            
+
             LicenseItem(
-                name = stringResource(R.string.licenses_jgit),
-                license = "BSD",
-                copyright = "Eclipse Foundation",
-                url = "https://github.com/eclipse-jgit/jgit"
+                name = stringResource(R.string.licenses_git),
+                license = "GPL v2.0",
+                copyright = "Junio C Hamano and the Git contributors",
+                url = "https://git-scm.com/"
             )
-            
+
             LicenseItem(
                 name = stringResource(R.string.licenses_timber),
                 license = "Apache 2.0",
                 copyright = "Jake Wharton",
                 url = "https://github.com/JakeWharton/timber"
             )
-            
+
             HorizontalDivider()
             Spacer(Modifier.height(16.dp))
-            
+
             // LGPL Notice
             Text(
                 text = stringResource(R.string.licenses_important_notice),
                 style = SquircleTheme.typography.text16Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            
+
             Text(
                 text = stringResource(R.string.licenses_lgl_notice),
                 style = SquircleTheme.typography.text14Regular,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
-            
+
             Text(
                 text = stringResource(R.string.licenses_apache_notice),
                 style = SquircleTheme.typography.text14Regular,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
-            
+
+            Text(
+                text = stringResource(R.string.licenses_gpl_notice),
+                style = SquircleTheme.typography.text14Regular,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
             HorizontalDivider()
             Spacer(Modifier.height(16.dp))
-            
+
             // View Full Licenses
             Text(
                 text = stringResource(R.string.licenses_complete_info),
                 style = SquircleTheme.typography.text16Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            
+
             Text(
                 text = stringResource(R.string.licenses_complete_info_desc),
                 style = SquircleTheme.typography.text14Regular,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
-            
+
             Preference(
                 title = stringResource(R.string.licenses_view_full),
                 onClick = onViewFullLicensesClicked,
             )
-            
+
             Spacer(Modifier.height(32.dp))
         }
     }
@@ -229,7 +235,7 @@ private fun LicenseItem(
     url: String,
 ) {
     val context = LocalContext.current
-    
+
     Column(
         modifier = Modifier
             .padding(vertical = 8.dp)
@@ -245,18 +251,18 @@ private fun LicenseItem(
             style = SquircleTheme.typography.text16Regular,
             modifier = Modifier.padding(bottom = 2.dp)
         )
-        
+
         Text(
             text = "License: $license",
             style = SquircleTheme.typography.text14Regular,
             modifier = Modifier.padding(bottom = 2.dp)
         )
-        
+
         Text(
             text = "© $copyright",
             style = SquircleTheme.typography.text14Regular,
         )
-        
+
         Spacer(Modifier.height(8.dp))
         HorizontalDivider()
     }

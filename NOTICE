@@ -18,7 +18,14 @@ This product includes software developed by:
    Licensed under Python Software Foundation License
    https://www.python.org/
 
-4. Additional third-party libraries
+4. Git
+   Copyright (c) Junio C Hamano and the Git contributors
+   Licensed under GNU General Public License v2.0
+   https://git-scm.com/
+   Bundled as an unmodified command-line program and executed as a
+   separate process; the application does not link against it.
+
+5. Additional third-party libraries
    See THIRD-PARTY-LICENSES file for complete details
 
 ---

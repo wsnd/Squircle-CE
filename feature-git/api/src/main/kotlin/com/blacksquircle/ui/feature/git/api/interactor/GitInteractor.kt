@@ -17,6 +17,7 @@
 package com.blacksquircle.ui.feature.git.api.interactor
 
 import com.blacksquircle.ui.feature.git.api.model.GitChange
+import com.blacksquircle.ui.feature.git.api.model.GitCommit
 import com.blacksquircle.ui.filesystem.base.model.FileModel
 import kotlinx.coroutines.flow.Flow
 
@@ -74,4 +75,14 @@ interface GitInteractor {
      * Commit with a message (all staged + selected unstaged changes).
      */
     suspend fun commit(repository: String, message: String)
+
+    /**
+     * Most recent commits reachable from HEAD, newest first.
+     */
+    suspend fun commitHistory(repository: String, limit: Int): List<GitCommit>
+
+    /**
+     * Files touched by a single commit.
+     */
+    suspend fun commitFiles(repository: String, sha: String): List<GitChange>
 }

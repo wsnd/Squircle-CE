@@ -19,12 +19,14 @@ package com.blacksquircle.ui.feature.git.data.repository
 import com.blacksquircle.ui.core.git.GitCommandRunner
 import com.blacksquircle.ui.core.git.GitCredentials
 import com.blacksquircle.ui.core.git.GitIdentity
+import com.blacksquircle.ui.core.git.GitLogParser
 import com.blacksquircle.ui.core.git.GitStatusEntry
 import com.blacksquircle.ui.core.git.GitStatusParser
 import com.blacksquircle.ui.core.provider.coroutine.DispatcherProvider
 import com.blacksquircle.ui.core.settings.SettingsManager
 import com.blacksquircle.ui.feature.git.api.model.ChangeType
 import com.blacksquircle.ui.feature.git.api.model.GitChange
+import com.blacksquircle.ui.feature.git.api.model.GitCommit
 import com.blacksquircle.ui.feature.git.domain.exception.GitException
 import com.blacksquircle.ui.feature.git.domain.exception.GitPullException
 import com.blacksquircle.ui.feature.git.domain.exception.GitPushException
@@ -93,6 +95,69 @@ internal class GitRepositoryImpl(
             }
             val count = git(repository, "rev-list", "--count", "${upstream.output.trim()}..HEAD")
             count.output.trim().toIntOrNull() ?: NO_UPSTREAM
+        }
+    }
+
+    override suspend fun log(repository: String, limit: Int): List<GitCommit> {
+        return withContext(dispatcherProvider.io()) {
+            val result = git(
+                repository,
+                "log",
+                "--max-count=$limit",
+                "--date-order",
+                "--pretty=format:${GitLogParser.LOG_FORMAT}",
+            )
+            if (!result.isSuccess) return@withContext emptyList()
+
+            GitLogParser.parse(result.output).map { entry ->
+                GitCommit(
+                    sha = entry.sha,
+                    shortSha = entry.shortSha,
+                    message = entry.subject,
+                    authorName = entry.authorName,
+                    authorEmail = entry.authorEmail,
+                    timestamp = entry.timestamp,
+                    refs = entry.refs,
+                    isMerge = entry.parents.size > 1,
+                )
+            }
+        }
+    }
+
+    override suspend fun commitFiles(repository: String, sha: String): List<GitChange> {
+        return withContext(dispatcherProvider.io()) {
+            // `-m --first-parent` makes a merge commit report what it brought
+            // in relative to its first parent — without it, merge commits come
+            // back with an empty file list.
+            val result = git(
+                repository,
+                "show",
+                "-m",
+                "--first-parent",
+                "--name-status",
+                "--format=",
+                sha,
+            )
+            if (!result.isSuccess) return@withContext emptyList()
+
+            result.output.lineSequence()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .mapNotNull { line ->
+                    val parts = line.split('\t')
+                    if (parts.size < 2) return@mapNotNull null
+                    val status = parts[0].firstOrNull() ?: return@mapNotNull null
+                    // Renames and copies report "R100<old><new>".
+                    val path = if (parts.size >= 3) parts[2] else parts[1]
+                    if (path.isEmpty()) return@mapNotNull null
+                    val changeType = when (status) {
+                        'A' -> ChangeType.ADDED
+                        'D' -> ChangeType.DELETED
+                        else -> ChangeType.MODIFIED
+                    }
+                    GitChange(name = path, changeType = changeType)
+                }
+                .toList()
         }
     }
 

@@ -24,6 +24,7 @@ import com.blacksquircle.ui.feature.git.api.exception.RepositoryNotFoundExceptio
 import com.blacksquircle.ui.feature.git.api.exception.UnsupportedFilesystemException
 import com.blacksquircle.ui.feature.git.api.interactor.GitInteractor
 import com.blacksquircle.ui.feature.git.api.model.GitChange
+import com.blacksquircle.ui.feature.git.api.model.GitCommit
 import com.blacksquircle.ui.feature.git.domain.exception.GitException
 import com.blacksquircle.ui.feature.git.domain.repository.GitRepository
 import com.blacksquircle.ui.filesystem.base.exception.FileNotFoundException
@@ -133,6 +134,14 @@ internal class GitInteractorImpl(
 
     override suspend fun unstagedChanges(repository: String): List<GitChange> {
         return gitRepository.unstagedChanges(repository)
+    }
+
+    override suspend fun commitHistory(repository: String, limit: Int): List<GitCommit> {
+        return gitRepository.log(repository, limit)
+    }
+
+    override suspend fun commitFiles(repository: String, sha: String): List<GitChange> {
+        return gitRepository.commitFiles(repository, sha)
     }
 
     override suspend fun commit(repository: String, message: String) {

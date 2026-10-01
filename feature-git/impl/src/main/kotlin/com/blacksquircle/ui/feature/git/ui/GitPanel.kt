@@ -21,8 +21,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,7 +37,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
 import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Text
@@ -56,6 +57,11 @@ import com.blacksquircle.ui.ds.emptyview.EmptyView
 import com.blacksquircle.ui.feature.git.R
 import com.blacksquircle.ui.feature.git.api.model.ChangeType
 import com.blacksquircle.ui.feature.git.api.model.GitChange
+import com.blacksquircle.ui.feature.git.api.model.GitCommit
+import com.blacksquircle.ui.feature.git.api.model.GitPanelTab
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.blacksquircle.ui.ds.R as UiR
 
 /**
@@ -74,6 +80,12 @@ fun GitPanel(
     showInitView: Boolean,
     commitMessage: String = "",
     isCommitting: Boolean = false,
+    selectedTab: GitPanelTab = GitPanelTab.CHANGES,
+    commits: List<GitCommit> = emptyList(),
+    isLoadingHistory: Boolean = false,
+    expandedCommitSha: String? = null,
+    expandedCommitFiles: List<GitChange> = emptyList(),
+    hasMoreHistory: Boolean = false,
     onRefreshClicked: () -> Unit,
     onChangeClicked: (GitChange) -> Unit,
     onInitRepositoryClicked: () -> Unit,
@@ -84,6 +96,9 @@ fun GitPanel(
     onDiscardClicked: (GitChange) -> Unit = {},
     onCommitMessageChanged: (String) -> Unit = {},
     onCommitClicked: () -> Unit = {},
+    onTabSelected: (GitPanelTab) -> Unit = {},
+    onHistoryCommitClicked: (GitCommit) -> Unit = {},
+    onLoadMoreHistoryClicked: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -95,7 +110,9 @@ fun GitPanel(
         GitPanelHeader(
             currentBranch = currentBranch,
             hasRepository = hasRepository,
+            selectedTab = selectedTab,
             onRefreshClicked = onRefreshClicked,
+            onTabSelected = onTabSelected,
         )
 
         Divider(color = SquircleTheme.colors.colorOutline)
@@ -141,6 +158,19 @@ fun GitPanel(
                         stringResource(R.string.git_panel_error)
                     },
                     modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            selectedTab == GitPanelTab.HISTORY -> {
+                CommitHistory(
+                    commits = commits,
+                    isLoading = isLoadingHistory,
+                    expandedCommitSha = expandedCommitSha,
+                    expandedCommitFiles = expandedCommitFiles,
+                    hasMore = hasMoreHistory,
+                    onCommitClicked = onHistoryCommitClicked,
+                    onLoadMoreClicked = onLoadMoreHistoryClicked,
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
 
@@ -220,7 +250,9 @@ fun GitPanel(
 private fun GitPanelHeader(
     currentBranch: String,
     hasRepository: Boolean,
+    selectedTab: GitPanelTab,
     onRefreshClicked: () -> Unit,
+    onTabSelected: (GitPanelTab) -> Unit,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -273,6 +305,56 @@ private fun GitPanelHeader(
                 maxLines = 1,
             )
         }
+
+        GitPanelTabs(
+            selectedTab = selectedTab,
+            onTabSelected = onTabSelected,
+        )
+    }
+}
+
+@Composable
+private fun GitPanelTabs(
+    selectedTab: GitPanelTab,
+    onTabSelected: (GitPanelTab) -> Unit,
+) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        GitPanelTab.entries.forEach { tab ->
+            val selected = tab == selectedTab
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(4.dp))
+                    .clickable { onTabSelected(tab) }
+            ) {
+                Text(
+                    text = stringResource(
+                        when (tab) {
+                            GitPanelTab.CHANGES -> R.string.git_panel_tab_changes
+                            GitPanelTab.HISTORY -> R.string.git_panel_tab_history
+                        }
+                    ),
+                    style = SquircleTheme.typography.text12Regular,
+                    color = if (selected) {
+                        SquircleTheme.colors.colorTextAndIconPrimary
+                    } else {
+                        SquircleTheme.colors.colorTextAndIconSecondary
+                    },
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    modifier = Modifier.padding(vertical = 8.dp),
+                )
+                if (selected) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .background(SquircleTheme.colors.colorPrimary)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -315,6 +397,287 @@ private fun SectionHeader(
                     .clickable(onClick = onActionClicked)
             )
         }
+    }
+}
+
+@Composable
+private fun CommitHistory(
+    commits: List<GitCommit>,
+    isLoading: Boolean,
+    expandedCommitSha: String?,
+    expandedCommitFiles: List<GitChange>,
+    hasMore: Boolean,
+    onCommitClicked: (GitCommit) -> Unit,
+    onLoadMoreClicked: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (isLoading && commits.isEmpty()) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = modifier.fillMaxSize()
+        ) {
+            CircularProgressIndicator(
+                color = SquircleTheme.colors.colorPrimary,
+                modifier = Modifier.size(24.dp),
+                strokeWidth = 2.dp,
+            )
+        }
+        return
+    }
+
+    if (commits.isEmpty()) {
+        EmptyView(
+            iconResId = UiR.drawable.ic_source_commit,
+            title = stringResource(R.string.git_panel_history_empty),
+            modifier = modifier.fillMaxSize()
+        )
+        return
+    }
+
+    LazyColumn(modifier = modifier.fillMaxSize()) {
+        items(commits, key = { it.sha }) { commit ->
+            val expanded = commit.sha == expandedCommitSha
+            CommitItem(
+                commit = commit,
+                expanded = expanded,
+                files = if (expanded) expandedCommitFiles else emptyList(),
+                onClick = { onCommitClicked(commit) },
+            )
+        }
+        if (hasMore) {
+            item {
+                LoadMoreButton(
+                    isLoading = isLoading,
+                    onClick = onLoadMoreClicked,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CommitItem(
+    commit: GitCommit,
+    expanded: Boolean,
+    files: List<GitChange>,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
+        ) {
+            // Commit graph: a lane with a dot, merge commits get a distinct color.
+            Box(
+                contentAlignment = Alignment.TopCenter,
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(2.dp)
+                        .background(SquircleTheme.colors.colorOutline)
+                )
+                Box(
+                    modifier = Modifier
+                        .padding(top = 4.dp)
+                        .size(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(
+                            if (commit.isMerge) {
+                                SquircleTheme.colors.colorTextAndIconAdditional
+                            } else {
+                                SquircleTheme.colors.colorPrimary
+                            }
+                        )
+                )
+            }
+
+            Spacer(Modifier.width(8.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = commit.message,
+                    style = SquircleTheme.typography.text14Regular,
+                    color = SquircleTheme.colors.colorTextAndIconPrimary,
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 2,
+                )
+
+                Spacer(Modifier.height(2.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        painter = painterResource(UiR.drawable.ic_person),
+                        contentDescription = null,
+                        tint = SquircleTheme.colors.colorTextAndIconSecondary,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = commit.authorName,
+                        style = SquircleTheme.typography.text12Regular,
+                        color = SquircleTheme.colors.colorTextAndIconSecondary,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = commit.shortSha,
+                        style = SquircleTheme.typography.text12Regular,
+                        color = SquircleTheme.colors.colorTextAndIconSecondary,
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = formatRelativeTime(commit.timestamp),
+                        style = SquircleTheme.typography.text12Regular,
+                        color = SquircleTheme.colors.colorTextAndIconSecondary,
+                        maxLines = 1,
+                    )
+                }
+
+                if (commit.refs.isNotEmpty()) {
+                    Spacer(Modifier.height(4.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        commit.refs.forEach { ref ->
+                            RefChip(name = ref)
+                        }
+                    }
+                }
+            }
+        }
+
+        if (expanded) {
+            Spacer(Modifier.height(8.dp))
+            if (files.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.git_panel_history_no_files),
+                    style = SquircleTheme.typography.text12Regular,
+                    color = SquircleTheme.colors.colorTextAndIconSecondary,
+                )
+            } else {
+                files.forEach { change ->
+                    CommitFileItem(change = change)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RefChip(name: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(3.dp))
+            .background(SquircleTheme.colors.colorBackgroundTertiary)
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        Icon(
+            painter = painterResource(UiR.drawable.ic_source_branch),
+            contentDescription = null,
+            tint = SquircleTheme.colors.colorTextAndIconSecondary,
+            modifier = Modifier.size(10.dp)
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = name,
+            style = SquircleTheme.typography.text12Regular,
+            color = SquircleTheme.colors.colorTextAndIconSecondary,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun CommitFileItem(change: GitChange) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 24.dp, end = 0.dp, top = 2.dp, bottom = 2.dp)
+    ) {
+        Text(
+            text = when (change.changeType) {
+                ChangeType.ADDED -> "A"
+                ChangeType.MODIFIED -> "M"
+                ChangeType.DELETED -> "D"
+            },
+            style = SquircleTheme.typography.text12Regular,
+            color = when (change.changeType) {
+                ChangeType.ADDED -> SquircleTheme.colors.colorTextAndIconSuccess
+                ChangeType.MODIFIED -> SquircleTheme.colors.colorTextAndIconAdditional
+                ChangeType.DELETED -> SquircleTheme.colors.colorTextAndIconError
+            },
+            modifier = Modifier.width(12.dp)
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = change.name,
+            style = SquircleTheme.typography.text12Regular,
+            color = SquircleTheme.colors.colorTextAndIconSecondary,
+            overflow = TextOverflow.Ellipsis,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun LoadMoreButton(
+    isLoading: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .clickable(enabled = !isLoading, onClick = onClick)
+            .padding(vertical = 10.dp)
+    ) {
+        if (isLoading) {
+            CircularProgressIndicator(
+                color = SquircleTheme.colors.colorPrimary,
+                modifier = Modifier.size(16.dp),
+                strokeWidth = 2.dp,
+            )
+        } else {
+            Text(
+                text = stringResource(R.string.git_panel_history_load_more),
+                style = SquircleTheme.typography.text12Regular,
+                color = SquircleTheme.colors.colorPrimary,
+            )
+        }
+    }
+}
+
+/**
+ * `git log` reports author time in seconds since the epoch; anything older
+ * than a few weeks is shown as a date instead of a coarse "N weeks ago".
+ */
+@Composable
+private fun formatRelativeTime(timestampSeconds: Long): String {
+    if (timestampSeconds <= 0L) return ""
+
+    val diffSeconds = System.currentTimeMillis() / 1000 - timestampSeconds
+    return when {
+        diffSeconds < 60 -> stringResource(R.string.git_panel_history_just_now)
+        diffSeconds < 3600 -> stringResource(R.string.git_panel_history_minutes_ago, diffSeconds / 60)
+        diffSeconds < 86_400 -> stringResource(R.string.git_panel_history_hours_ago, diffSeconds / 3600)
+        diffSeconds < 604_800 -> stringResource(R.string.git_panel_history_days_ago, diffSeconds / 86_400)
+        diffSeconds < 2_629_800 -> stringResource(R.string.git_panel_history_weeks_ago, diffSeconds / 604_800)
+        else -> SimpleDateFormat("d MMM yyyy", Locale.getDefault())
+            .format(Date(timestampSeconds * 1000))
     }
 }
 

@@ -21,7 +21,6 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.ReportDrawnWhen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -33,13 +32,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -57,8 +53,8 @@ import com.blacksquircle.ui.core.mvi.ViewEvent
 import com.blacksquircle.ui.ds.PreviewBackground
 import com.blacksquircle.ui.ds.SquircleTheme
 import com.blacksquircle.ui.ds.divider.HorizontalDivider
-import com.blacksquircle.ui.ds.divider.VerticalDraggableDivider
 import com.blacksquircle.ui.ds.divider.VerticalDivider
+import com.blacksquircle.ui.ds.divider.VerticalDraggableDivider
 import com.blacksquircle.ui.ds.drawer.DrawerState
 import com.blacksquircle.ui.ds.drawer.rememberDrawerState
 import com.blacksquircle.ui.ds.emptyview.EmptyView
@@ -71,10 +67,12 @@ import com.blacksquircle.ui.ds.scaffold.ScaffoldSuite
 import com.blacksquircle.ui.ds.statusbar.StatusBar
 import com.blacksquircle.ui.ds.statusbar.StatusBarItem
 import com.blacksquircle.ui.feature.editor.R
+import com.blacksquircle.ui.feature.editor.domain.GlobalSearchUseCase
 import com.blacksquircle.ui.feature.editor.domain.model.DocumentModel
 import com.blacksquircle.ui.feature.editor.internal.EditorComponent
 import com.blacksquircle.ui.feature.editor.ui.editor.compose.*
 import com.blacksquircle.ui.feature.editor.ui.editor.model.*
+import com.blacksquircle.ui.feature.explorer.api.navigation.KEY_CREATE_FILE
 import com.blacksquircle.ui.feature.explorer.ui.explorer.DrawerExplorer
 import com.blacksquircle.ui.feature.git.api.navigation.CheckoutRoute.Companion.KEY_CHECKOUT
 import com.blacksquircle.ui.feature.git.api.navigation.PullRoute.Companion.KEY_PULL
@@ -102,14 +100,15 @@ internal fun EditorScreen(
     val viewState by viewModel.viewState.collectAsStateWithLifecycle()
 
     val windowSize = SquircleLayout.windowSize
-    val isTablet = windowSize != WindowSize.Compact || LocalContext.current.resources.configuration.smallestScreenWidthDp >= 600
+    val isTablet = windowSize != WindowSize.Compact ||
+        LocalContext.current.resources.configuration.smallestScreenWidthDp >= 600
 
     var line by remember { mutableIntStateOf(1) }
     var column by remember { mutableIntStateOf(1) }
-    
+
     var sidePaneWidth by rememberSaveable { mutableStateOf(300f) }
     var bottomPanelHeight by rememberSaveable { mutableStateOf(300f) }
-    
+
     // Search panel state
     var searchPanelVisible by rememberSaveable { mutableStateOf(false) }
 
@@ -185,8 +184,8 @@ internal fun EditorScreen(
         onRunPythonClicked = { viewModel.onRunPythonClicked(isTablet) },
         onReadOnlyClicked = viewModel::onReadOnlyClicked,
         onContentChanged = viewModel::onContentChanged,
-        onShortcutPressed = { ctrl, shift, alt, keyCode -> 
-            viewModel.onShortcutPressed(ctrl, shift, alt, keyCode, isTablet) 
+        onShortcutPressed = { ctrl, shift, alt, keyCode ->
+            viewModel.onShortcutPressed(ctrl, shift, alt, keyCode, isTablet)
         },
         onCutClicked = viewModel::onCutClicked,
         onCopyClicked = viewModel::onCopyClicked,
@@ -252,6 +251,9 @@ internal fun EditorScreen(
         onGitPanelDiscardClicked = viewModel::onGitPanelDiscardClicked,
         onGitPanelCommitMessageChanged = viewModel::onGitPanelCommitMessageChanged,
         onGitPanelCommitClicked = viewModel::onGitPanelCommitClicked,
+        onGitPanelTabSelected = viewModel::onGitPanelTabSelected,
+        onGitPanelHistoryCommitClicked = viewModel::onGitPanelHistoryCommitClicked,
+        onGitPanelLoadMoreHistoryClicked = viewModel::onGitPanelLoadMoreHistoryClicked,
     )
 
     val openFileContract = rememberOpenFileContract { result ->
@@ -287,7 +289,7 @@ internal fun EditorScreen(
     ResultEffect<Int>(KEY_INSERT_COLOR) { viewModel.onColorSelected(it) }
     ResultEffect<Unit>(KEY_PULL) { viewModel.onReloadFileClicked() }
     ResultEffect<Unit>(KEY_CHECKOUT) { viewModel.onReloadFileClicked() }
-    ResultEffect<String>(com.blacksquircle.ui.feature.explorer.api.navigation.KEY_CREATE_FILE) { viewModel.onCreateFileResult(it) }
+    ResultEffect<String>(KEY_CREATE_FILE) { viewModel.onCreateFileResult(it) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onResumed() }
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.onPaused() }
@@ -372,9 +374,9 @@ private fun EditorScreen(
     onGlobalSearchWordsOnlyClicked: () -> Unit = {},
     onGlobalSearchSubmitted: () -> Unit = {},
     onGlobalSearchClearClicked: () -> Unit = {},
-    onGlobalSearchResultClicked: (com.blacksquircle.ui.feature.editor.domain.GlobalSearchUseCase.FileSearchResult) -> Unit = {},
+    onGlobalSearchResultClicked: (GlobalSearchUseCase.FileSearchResult) -> Unit = {},
     onGlobalSearchReplaceAll: () -> Unit = {},
-    onGlobalSearchReplaceResult: (com.blacksquircle.ui.feature.editor.domain.GlobalSearchUseCase.FileSearchResult) -> Unit = {},
+    onGlobalSearchReplaceResult: (GlobalSearchUseCase.FileSearchResult) -> Unit = {},
     // Git panel callbacks
     onGitPanelRefreshClicked: () -> Unit = {},
     onGitPanelChangeClicked: (com.blacksquircle.ui.feature.git.api.model.GitChange) -> Unit = {},
@@ -386,6 +388,9 @@ private fun EditorScreen(
     onGitPanelDiscardClicked: (com.blacksquircle.ui.feature.git.api.model.GitChange) -> Unit = {},
     onGitPanelCommitMessageChanged: (String) -> Unit = {},
     onGitPanelCommitClicked: () -> Unit = {},
+    onGitPanelTabSelected: (com.blacksquircle.ui.feature.git.api.model.GitPanelTab) -> Unit = {},
+    onGitPanelHistoryCommitClicked: (com.blacksquircle.ui.feature.git.api.model.GitCommit) -> Unit = {},
+    onGitPanelLoadMoreHistoryClicked: () -> Unit = {},
     line: Int = 1,
     column: Int = 1,
     sidePaneWidth: Dp = 300.dp,
@@ -396,7 +401,7 @@ private fun EditorScreen(
 ) {
     val windowSize = SquircleLayout.windowSize
     val isTablet = windowSize != WindowSize.Compact
-    
+
     val currentBottomHeight by rememberUpdatedState(bottomPanelHeight)
     val currentOnBottomHeightChanged by rememberUpdatedState(onBottomPanelHeightChanged)
 
@@ -440,7 +445,7 @@ private fun EditorScreen(
                     gitPanelVisible -> {
                         // Show git panel in sidebar (VSCode style)
                         val currentGitState = viewState.gitPanelState
-                        
+
                         GitPanel(
                             stagedChanges = currentGitState.stagedChanges,
                             unstagedChanges = currentGitState.unstagedChanges,
@@ -448,10 +453,20 @@ private fun EditorScreen(
                             isLoading = currentGitState.isLoading,
                             isError = currentGitState.isError,
                             errorMessage = currentGitState.errorMessage,
-                            hasRepository = currentGitState.repositoryPath.isNotEmpty() && !currentGitState.showInitView,
+                            hasRepository = currentGitState.repositoryPath.isNotEmpty() &&
+                                !currentGitState.showInitView,
                             showInitView = currentGitState.showInitView,
                             commitMessage = currentGitState.commitMessage,
                             isCommitting = currentGitState.isCommitting,
+                            selectedTab = currentGitState.selectedTab,
+                            commits = currentGitState.commits,
+                            isLoadingHistory = currentGitState.isLoadingHistory,
+                            expandedCommitSha = currentGitState.expandedCommitSha,
+                            expandedCommitFiles = currentGitState.expandedCommitFiles,
+                            hasMoreHistory = currentGitState.hasMoreHistory,
+                            onTabSelected = onGitPanelTabSelected,
+                            onHistoryCommitClicked = onGitPanelHistoryCommitClicked,
+                            onLoadMoreHistoryClicked = onGitPanelLoadMoreHistoryClicked,
                             onRefreshClicked = onGitPanelRefreshClicked,
                             onChangeClicked = onGitPanelChangeClicked,
                             onInitRepositoryClicked = onGitPanelInitRepositoryClicked,
@@ -468,7 +483,7 @@ private fun EditorScreen(
                     searchPanelVisible -> {
                         // Show global search panel in sidebar (VSCode style)
                         val currentGlobalSearchState = viewState.globalSearchState
-                        
+
                         GlobalSearchPanel(
                             searchState = currentGlobalSearchState,
                             onQueryChanged = onGlobalSearchQueryChanged,
@@ -531,8 +546,8 @@ private fun EditorScreen(
                         onTerminalClicked = onTerminalClicked,
                         onGitPanelClicked = onGitClicked,
                         onCloseFileClicked = onCloseFileClicked,
-                        onCloseOthersClicked = { 
-                            viewState.currentDocument?.document?.let(onCloseOthersClicked) 
+                        onCloseOthersClicked = {
+                            viewState.currentDocument?.document?.let(onCloseOthersClicked)
                         },
                         onCloseAllClicked = onCloseAllClicked,
                         autoSave = autoSave,
@@ -569,10 +584,20 @@ private fun EditorScreen(
                                     isLoading = currentGitState.isLoading,
                                     isError = currentGitState.isError,
                                     errorMessage = currentGitState.errorMessage,
-                                    hasRepository = currentGitState.repositoryPath.isNotEmpty() && !currentGitState.showInitView,
+                                    hasRepository = currentGitState.repositoryPath.isNotEmpty() &&
+                                        !currentGitState.showInitView,
                                     showInitView = currentGitState.showInitView,
                                     commitMessage = currentGitState.commitMessage,
                                     isCommitting = currentGitState.isCommitting,
+                                    selectedTab = currentGitState.selectedTab,
+                                    commits = currentGitState.commits,
+                                    isLoadingHistory = currentGitState.isLoadingHistory,
+                                    expandedCommitSha = currentGitState.expandedCommitSha,
+                                    expandedCommitFiles = currentGitState.expandedCommitFiles,
+                                    hasMoreHistory = currentGitState.hasMoreHistory,
+                                    onTabSelected = onGitPanelTabSelected,
+                                    onHistoryCommitClicked = onGitPanelHistoryCommitClicked,
+                                    onLoadMoreHistoryClicked = onGitPanelLoadMoreHistoryClicked,
                                     onRefreshClicked = onGitPanelRefreshClicked,
                                     onChangeClicked = onGitPanelChangeClicked,
                                     onInitRepositoryClicked = onGitPanelInitRepositoryClicked,
@@ -591,7 +616,9 @@ private fun EditorScreen(
                             }
                         }
                     }
-                } else null,
+                } else {
+                    null
+                },
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             ) { contentPadding ->
                 Column(modifier = Modifier.fillMaxSize().padding(contentPadding)) {
@@ -680,7 +707,7 @@ private fun EditorScreen(
                                 },
                                 onCloseClicked = onToggleBottomPanel
                             )
-                            
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()

@@ -16,15 +16,16 @@
 
 package com.blacksquircle.ui.feature.editor.ui.editor
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.blacksquircle.ui.core.event.AppEvent
+import com.blacksquircle.ui.core.event.EventBus
 import com.blacksquircle.ui.core.extensions.PermissionException
 import com.blacksquircle.ui.core.extensions.indexOf
 import com.blacksquircle.ui.core.extensions.indexOrNull
-import com.blacksquircle.ui.core.event.AppEvent
-import com.blacksquircle.ui.core.event.EventBus
 import com.blacksquircle.ui.core.mvi.ViewEvent
 import com.blacksquircle.ui.core.provider.resources.StringProvider
 import com.blacksquircle.ui.core.settings.SettingsManager
@@ -37,11 +38,10 @@ import com.blacksquircle.ui.feature.editor.api.navigation.ConfirmExitRoute
 import com.blacksquircle.ui.feature.editor.api.navigation.ForceSyntaxRoute
 import com.blacksquircle.ui.feature.editor.api.navigation.GoToLineRoute
 import com.blacksquircle.ui.feature.editor.api.navigation.InsertColorRoute
+import com.blacksquircle.ui.feature.editor.domain.GlobalSearchUseCase
 import com.blacksquircle.ui.feature.editor.domain.interactor.LanguageInteractor
 import com.blacksquircle.ui.feature.editor.domain.model.DocumentModel
 import com.blacksquircle.ui.feature.editor.domain.repository.DocumentRepository
-import com.blacksquircle.ui.feature.explorer.api.interactor.ExplorerInteractor
-import com.blacksquircle.ui.feature.editor.domain.GlobalSearchUseCase
 import com.blacksquircle.ui.feature.editor.ui.editor.model.DocumentState
 import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorCommand
 import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorSettings
@@ -53,11 +53,14 @@ import com.blacksquircle.ui.feature.editor.ui.editor.model.SearchState
 import com.blacksquircle.ui.feature.editor.ui.editor.view.selectionEnd
 import com.blacksquircle.ui.feature.editor.ui.editor.view.selectionStart
 import com.blacksquircle.ui.feature.explorer.api.factory.FilesystemFactory
+import com.blacksquircle.ui.feature.explorer.api.interactor.ExplorerInteractor
 import com.blacksquircle.ui.feature.explorer.api.navigation.StorageDeniedRoute
 import com.blacksquircle.ui.feature.explorer.api.repository.ExplorerRepository
 import com.blacksquircle.ui.feature.fonts.api.interactor.FontsInteractor
 import com.blacksquircle.ui.feature.git.api.exception.RepositoryNotFoundException
 import com.blacksquircle.ui.feature.git.api.interactor.GitInteractor
+import com.blacksquircle.ui.feature.git.api.model.GitCommit
+import com.blacksquircle.ui.feature.git.api.model.GitPanelTab
 import com.blacksquircle.ui.feature.git.api.navigation.CheckoutRoute
 import com.blacksquircle.ui.feature.git.api.navigation.CommitRoute
 import com.blacksquircle.ui.feature.git.api.navigation.FetchRoute
@@ -70,11 +73,11 @@ import com.blacksquircle.ui.feature.shortcuts.api.model.Shortcut
 import com.blacksquircle.ui.feature.terminal.api.interactor.TerminalInteractor
 import com.blacksquircle.ui.feature.terminal.api.navigation.TerminalRoute
 import com.blacksquircle.ui.filesystem.base.model.FileModel
+import com.blacksquircle.ui.filesystem.saf.SAFFilesystem
 import com.blacksquircle.ui.navigation.api.Navigator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -83,7 +86,6 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Provider
 import com.blacksquircle.ui.ds.R as UiR
-import android.content.Context
 
 internal class EditorViewModel @Inject constructor(
     private val context: Context,
@@ -579,7 +581,7 @@ internal class EditorViewModel @Inject constructor(
 
             val documentState = documents[selectedPosition]
             val document = documentState.document
-            
+
             // Only run for Python files
             if (document.extension != ".py") {
                 _viewEvent.send(ViewEvent.Toast("This feature is only available for Python files"))
@@ -597,14 +599,14 @@ internal class EditorViewModel @Inject constructor(
                         selectionStart = content.selectionStart,
                         selectionEnd = content.selectionEnd,
                     )
-                    
+
                     documents = documents.mapSelected { state ->
                         state.copy(document = updatedDocument)
                     }
                     _viewState.update {
                         it.copy(documents = documents)
                     }
-                    
+
                     documentRepository.saveDocument(updatedDocument, content)
                 } else if (content == null) {
                     _viewEvent.send(ViewEvent.Toast("Error: No content to save"))
@@ -612,7 +614,7 @@ internal class EditorViewModel @Inject constructor(
                 }
 
                 // 2. Get actual file path based on filesystem type
-                val actualFilePath = if (document.filesystemUuid == com.blacksquircle.ui.filesystem.saf.SAFFilesystem.SAF_UUID) {
+                val actualFilePath = if (document.filesystemUuid == SAFFilesystem.SAF_UUID) {
                     // For SAF files, resolve content URI to real path
                     val fileUri = Uri.parse(document.fileUri)
                     resolveSafFilePath(context, fileUri, document.displayName)
@@ -624,20 +626,20 @@ internal class EditorViewModel @Inject constructor(
                     // For local files, use the path directly
                     document.path
                 }
-                
+
                 val file = java.io.File(actualFilePath)
                 if (!file.exists()) {
                     _viewEvent.send(ViewEvent.Toast("File does not exist: ${document.displayName}"))
                     Timber.e("File does not exist: $actualFilePath")
                     return@launch
                 }
-                
+
                 val parentDir = file.parent ?: ""
                 val fileName = file.name
                 val nativeLibDir = context.applicationInfo.nativeLibraryDir
                 val pythonExe = "$nativeLibDir/libpython_exe.so"
                 val command = "cd \"$parentDir\" && \"$pythonExe\" \"$fileName\""
-                
+
                 if (isTablet) {
                     // 3. Integrated execution for tablets
                     _viewState.update { it.copy(bottomPanelVisible = true) }
@@ -653,7 +655,7 @@ internal class EditorViewModel @Inject constructor(
                         )
                     )
                 }
-                
+
                 _viewEvent.send(ViewEvent.Toast("Running: python ${document.displayName}"))
             } catch (e: Exception) {
                 Timber.e(e, "Failed to run Python file")
@@ -661,7 +663,7 @@ internal class EditorViewModel @Inject constructor(
             }
         }
     }
-    
+
     /**
      * Resolve SAF URI to actual filesystem path
      * Tries multiple methods: MediaStore query, URI parsing, cache fallback
@@ -669,14 +671,14 @@ internal class EditorViewModel @Inject constructor(
     private fun resolveSafFilePath(context: Context, uri: android.net.Uri, fileName: String): String? {
         // Method 1: Try MediaStore query
         getRealPathFromUri(context, uri)?.let { return it }
-        
+
         // Method 2: Parse document URI for local storage
         extractPathFromDocumentUri(context, uri)?.let { return it }
-        
+
         // Method 3: Fallback - copy to cache
         return copySafFileToCache(context, uri, fileName)?.absolutePath
     }
-    
+
     /**
      * Get real filesystem path from SAF URI
      */
@@ -696,7 +698,7 @@ internal class EditorViewModel @Inject constructor(
             null
         }
     }
-    
+
     /**
      * Extract path from SAF document URI (for local storage)
      * Handles URIs like: content://com.android.externalstorage.documents/tree/primary%3ADownloads/document/primary%3ADownloads%2Ftest.py
@@ -707,18 +709,18 @@ internal class EditorViewModel @Inject constructor(
             if (uri.authority != "com.android.externalstorage.documents") {
                 return null
             }
-            
+
             val docId = android.provider.DocumentsContract.getDocumentId(uri)
-            
+
             // Parse the document ID (format: "primary:path" or "SD_CARD_ID:path")
             val split = docId.split(":", limit = 2)
             if (split.size != 2) {
                 return null
             }
-            
-            val type = split[0]  // "primary" or volume ID
-            val relativePath = split[1]  // e.g., "Downloads/test.py"
-            
+
+            val type = split[0] // "primary" or volume ID
+            val relativePath = split[1] // e.g., "Downloads/test.py"
+
             // For primary storage, use Environment.getExternalStorageDirectory()
             val basePath = if (type == "primary") {
                 android.os.Environment.getExternalStorageDirectory().absolutePath
@@ -728,9 +730,9 @@ internal class EditorViewModel @Inject constructor(
                 externalDirs.find { it.path.contains(type) }?.parentFile?.parentFile?.parentFile?.absolutePath
                     ?: return null
             }
-            
+
             val fullPath = "$basePath/$relativePath"
-            
+
             // Verify the file exists
             val file = java.io.File(fullPath)
             if (file.exists()) fullPath else null
@@ -739,7 +741,7 @@ internal class EditorViewModel @Inject constructor(
             null
         }
     }
-    
+
     /**
      * Copy SAF file to cache directory
      */
@@ -747,13 +749,13 @@ internal class EditorViewModel @Inject constructor(
         return try {
             val cacheDir = context.cacheDir
             val tempFile = java.io.File(cacheDir, fileName)
-            
+
             context.contentResolver.openInputStream(uri)?.use { input ->
                 tempFile.outputStream().use { output ->
                     input.copyTo(output)
                 }
             }
-            
+
             tempFile
         } catch (e: Exception) {
             Timber.e(e, "Failed to copy SAF file to cache")
@@ -2117,6 +2119,59 @@ internal class EditorViewModel @Inject constructor(
         gitPanelJob?.cancel()
         gitPanelJob = viewModelScope.launch {
             loadGitChanges()
+            if (_viewState.value.gitPanelState.selectedTab == GitPanelTab.HISTORY) {
+                loadGitHistory()
+            }
+        }
+    }
+
+    fun onGitPanelTabSelected(tab: GitPanelTab) {
+        _viewState.update {
+            it.copy(gitPanelState = it.gitPanelState.copy(selectedTab = tab))
+        }
+        if (tab != GitPanelTab.HISTORY) return
+        if (_viewState.value.gitPanelState.commits.isNotEmpty()) return
+        gitPanelJob?.cancel()
+        gitPanelJob = viewModelScope.launch {
+            loadGitHistory()
+        }
+    }
+
+    fun onGitPanelHistoryCommitClicked(commit: GitCommit) {
+        val state = _viewState.value.gitPanelState
+        val nextSha = if (state.expandedCommitSha == commit.sha) null else commit.sha
+
+        _viewState.update {
+            it.copy(
+                gitPanelState = it.gitPanelState.copy(
+                    expandedCommitSha = nextSha,
+                    expandedCommitFiles = emptyList(),
+                )
+            )
+        }
+
+        if (nextSha == null || state.repositoryPath.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val files = gitInteractor.commitFiles(state.repositoryPath, nextSha)
+                _viewState.update {
+                    it.copy(
+                        gitPanelState = it.gitPanelState.copy(expandedCommitFiles = files)
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewEvent.send(ViewEvent.Toast(e.message.orEmpty()))
+            }
+        }
+    }
+
+    fun onGitPanelLoadMoreHistoryClicked() {
+        gitPanelJob?.cancel()
+        gitPanelJob = viewModelScope.launch {
+            loadGitHistory(loadMore = true)
         }
     }
 
@@ -2255,6 +2310,10 @@ internal class EditorViewModel @Inject constructor(
                 }
 
                 loadGitChanges()
+                if (_viewState.value.gitPanelState.commits.isNotEmpty()) {
+                    // A new commit belongs at the top of the history.
+                    loadGitHistory()
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -2381,14 +2440,16 @@ internal class EditorViewModel @Inject constructor(
             val unstaged = gitInteractor.unstagedChanges(repoPath)
 
             _viewState.update {
+                val current = it.gitPanelState
                 it.copy(
-                    gitPanelState = GitPanelState(
+                    gitPanelState = current.copy(
                         repositoryPath = repoPath,
                         currentBranch = branch,
                         stagedChanges = staged,
                         unstagedChanges = unstaged,
-                        commitMessage = it.gitPanelState.commitMessage,
                         isLoading = false,
+                        isError = false,
+                        errorMessage = "",
                     )
                 )
             }
@@ -2397,16 +2458,57 @@ internal class EditorViewModel @Inject constructor(
         } catch (e: Exception) {
             Timber.e(e, e.message)
             _viewState.update {
+                val current = it.gitPanelState
                 it.copy(
-                    gitPanelState = GitPanelState(
-                        repositoryPath = _viewState.value.gitPanelState.repositoryPath,
-                        commitMessage = _viewState.value.gitPanelState.commitMessage,
+                    gitPanelState = current.copy(
                         isError = true,
                         errorMessage = e.message.orEmpty(),
                         isLoading = false,
                     )
                 )
             }
+        }
+    }
+
+    private suspend fun loadGitHistory(loadMore: Boolean = false) {
+        val state = _viewState.value.gitPanelState
+        val repoPath = state.repositoryPath
+        if (repoPath.isEmpty()) return
+
+        val limit = if (loadMore) {
+            state.historyLimit + GitPanelState.HISTORY_PAGE_SIZE
+        } else {
+            state.historyLimit
+        }
+
+        _viewState.update {
+            it.copy(gitPanelState = it.gitPanelState.copy(isLoadingHistory = true))
+        }
+        try {
+            // One commit more than needed tells us whether there is anything
+            // left behind, without a second call to `git rev-list --count`.
+            val commits = gitInteractor.commitHistory(repoPath, limit + 1)
+            val hasMore = commits.size > limit
+
+            _viewState.update {
+                val current = it.gitPanelState
+                it.copy(
+                    gitPanelState = current.copy(
+                        commits = if (hasMore) commits.take(limit) else commits,
+                        historyLimit = limit,
+                        hasMoreHistory = hasMore,
+                        isLoadingHistory = false,
+                    )
+                )
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.e(e, e.message)
+            _viewState.update {
+                it.copy(gitPanelState = it.gitPanelState.copy(isLoadingHistory = false))
+            }
+            _viewEvent.send(ViewEvent.Toast(e.message.orEmpty()))
         }
     }
 

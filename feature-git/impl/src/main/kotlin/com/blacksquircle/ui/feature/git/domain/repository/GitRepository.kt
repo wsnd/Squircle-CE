@@ -17,6 +17,7 @@
 package com.blacksquircle.ui.feature.git.domain.repository
 
 import com.blacksquircle.ui.feature.git.api.model.GitChange
+import com.blacksquircle.ui.feature.git.api.model.GitCommit
 
 internal interface GitRepository {
 
@@ -24,6 +25,16 @@ internal interface GitRepository {
     suspend fun branchList(repository: String): List<String>
     suspend fun changesList(repository: String): List<GitChange>
     suspend fun commitCount(repository: String): Int
+
+    /**
+     * Most recent commits reachable from HEAD, newest first.
+     */
+    suspend fun log(repository: String, limit: Int): List<GitCommit>
+
+    /**
+     * Files touched by a single commit.
+     */
+    suspend fun commitFiles(repository: String, sha: String): List<GitChange>
 
     suspend fun fetch(repository: String)
     suspend fun pull(repository: String)

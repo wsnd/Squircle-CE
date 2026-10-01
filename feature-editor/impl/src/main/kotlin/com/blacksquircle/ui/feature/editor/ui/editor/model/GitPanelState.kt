@@ -18,6 +18,8 @@ package com.blacksquircle.ui.feature.editor.ui.editor.model
 
 import androidx.compose.runtime.Immutable
 import com.blacksquircle.ui.feature.git.api.model.GitChange
+import com.blacksquircle.ui.feature.git.api.model.GitCommit
+import com.blacksquircle.ui.feature.git.api.model.GitPanelTab
 
 /**
  * State holder for the Git (Source Control) panel.
@@ -44,7 +46,34 @@ internal data class GitPanelState(
      * Whether a commit is in progress.
      */
     val isCommitting: Boolean = false,
+    /**
+     * Active screen of the panel: working tree changes or commit history.
+     */
+    val selectedTab: GitPanelTab = GitPanelTab.CHANGES,
+    /**
+     * Commits loaded for the history screen, newest first.
+     */
+    val commits: List<GitCommit> = emptyList(),
+    /**
+     * How many commits the history screen asks git for. Grows when the user
+     * loads more.
+     */
+    val historyLimit: Int = HISTORY_PAGE_SIZE,
+    val isLoadingHistory: Boolean = false,
+    /**
+     * Whether git returned more commits than [historyLimit] on the last load.
+     */
+    val hasMoreHistory: Boolean = false,
+    /**
+     * Commit whose changed files are expanded, if any.
+     */
+    val expandedCommitSha: String? = null,
+    val expandedCommitFiles: List<GitChange> = emptyList(),
 ) {
+    companion object {
+        const val HISTORY_PAGE_SIZE = 50
+    }
+
     /**
      * Combined list of all changes for backward compatibility.
      */

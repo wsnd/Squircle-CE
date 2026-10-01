@@ -16,10 +16,10 @@
 
 package com.blacksquircle.ui.feature.explorer.manager
 
+import com.blacksquircle.ui.feature.explorer.api.manager.TaskAction
 import com.blacksquircle.ui.feature.explorer.api.model.TaskStatus
 import com.blacksquircle.ui.feature.explorer.api.model.TaskType
-import com.blacksquircle.ui.feature.explorer.data.manager.TaskAction
-import com.blacksquircle.ui.feature.explorer.data.manager.TaskManager
+import com.blacksquircle.ui.feature.explorer.data.manager.TaskManagerImpl
 import com.blacksquircle.ui.test.provider.TestDispatcherProvider
 import com.blacksquircle.ui.test.rule.TimberConsoleRule
 import junit.framework.TestCase.assertEquals
@@ -41,7 +41,7 @@ class TaskManagerTest {
     private val dispatcherProvider = TestDispatcherProvider()
     private val testDispatcher = dispatcherProvider.testDispatcher
 
-    private val taskManager = TaskManager(dispatcherProvider)
+    private val taskManager = TaskManagerImpl(dispatcherProvider)
 
     @Test
     fun `When executing a task Then task is done`() = runTest(testDispatcher) {

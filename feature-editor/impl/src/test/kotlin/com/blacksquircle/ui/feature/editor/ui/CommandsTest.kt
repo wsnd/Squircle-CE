@@ -16,6 +16,7 @@
 
 package com.blacksquircle.ui.feature.editor.ui
 
+import android.content.Context
 import com.blacksquircle.ui.core.mvi.ViewEvent
 import com.blacksquircle.ui.core.provider.resources.StringProvider
 import com.blacksquircle.ui.core.provider.typeface.TypefaceProvider
@@ -26,6 +27,9 @@ import com.blacksquircle.ui.feature.editor.domain.repository.DocumentRepository
 import com.blacksquircle.ui.feature.editor.ui.editor.EditorViewEvent
 import com.blacksquircle.ui.feature.editor.ui.editor.EditorViewModel
 import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorCommand
+import com.blacksquircle.ui.feature.explorer.api.factory.FilesystemFactory
+import com.blacksquircle.ui.feature.explorer.api.interactor.ExplorerInteractor
+import com.blacksquircle.ui.feature.explorer.api.repository.ExplorerRepository
 import com.blacksquircle.ui.feature.fonts.api.interactor.FontsInteractor
 import com.blacksquircle.ui.feature.git.api.interactor.GitInteractor
 import com.blacksquircle.ui.feature.shortcuts.api.interactor.ShortcutsInteractor
@@ -53,6 +57,7 @@ class CommandsTest {
     @get:Rule
     val timberConsoleRule = TimberConsoleRule()
 
+    private val context = mockk<Context>(relaxed = true)
     private val stringProvider = mockk<StringProvider>(relaxed = true)
     private val settingsManager = mockk<SettingsManager>(relaxed = true)
     private val documentRepository = mockk<DocumentRepository>(relaxed = true)
@@ -62,6 +67,9 @@ class CommandsTest {
     private val shortcutsInteractor = mockk<ShortcutsInteractor>(relaxed = true)
     private val terminalInteractor = mockk<TerminalInteractor>(relaxed = true)
     private val languageInteractor = mockk<LanguageInteractor>(relaxed = true)
+    private val explorerInteractor = mockk<ExplorerInteractor>(relaxed = true)
+    private val explorerRepository = mockk<ExplorerRepository>(relaxed = true)
+    private val filesystemFactory = mockk<FilesystemFactory>(relaxed = true)
     private val navigator = mockk<Navigator>(relaxed = true)
 
     @Before
@@ -198,6 +206,7 @@ class CommandsTest {
 
     private fun createViewModel(): EditorViewModel {
         return EditorViewModel(
+            context = context,
             stringProvider = stringProvider,
             settingsManager = settingsManager,
             documentRepository = documentRepository,
@@ -207,6 +216,9 @@ class CommandsTest {
             shortcutsInteractor = shortcutsInteractor,
             terminalInteractor = terminalInteractor,
             languageInteractor = languageInteractor,
+            explorerInteractor = explorerInteractor,
+            explorerRepository = explorerRepository,
+            filesystemFactory = filesystemFactory,
             navigator = navigator
         )
     }

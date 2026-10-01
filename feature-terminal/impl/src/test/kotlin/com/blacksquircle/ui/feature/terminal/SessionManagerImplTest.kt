@@ -16,15 +16,44 @@
 
 package com.blacksquircle.ui.feature.terminal
 
+import android.content.Context
+import com.blacksquircle.ui.feature.python.PythonStdlibExtractor
 import com.blacksquircle.ui.feature.terminal.data.manager.SessionManagerImpl
 import com.blacksquircle.ui.feature.terminal.domain.manager.SessionManager
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.mockkObject
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertTrue
+import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class SessionManagerImplTest {
 
-    private val sessionManager: SessionManager = SessionManagerImpl()
+    @get:Rule
+    val temporaryFolder = TemporaryFolder()
+
+    // Creating a session prepares the bin directory, and a relaxed mock would
+    // hand out a null filesDir for it.
+    private val context by lazy {
+        mockk<Context>(relaxed = true) {
+            every { filesDir } returns temporaryFolder.newFolder("files")
+        }
+    }
+
+    private val sessionManager: SessionManager by lazy {
+        SessionManagerImpl(context = context)
+    }
+
+    @Before
+    fun setup() {
+        // Unpacking the real stdlib needs Build.SUPPORTED_ABIS, which the unit
+        // test android.jar leaves null.
+        mockkObject(PythonStdlibExtractor)
+        every { PythonStdlibExtractor.extractIfNeeded(any()) } returns null
+    }
 
     @Test
     fun `When user has multiple sessions Then return sessions sorted by ordinal`() {

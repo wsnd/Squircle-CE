@@ -22,11 +22,11 @@ import com.blacksquircle.ui.core.extensions.PermissionException
 import com.blacksquircle.ui.core.extensions.isStorageAccessGranted
 import com.blacksquircle.ui.core.settings.SettingsManager
 import com.blacksquircle.ui.feature.explorer.api.factory.FilesystemFactory
+import com.blacksquircle.ui.feature.explorer.api.manager.TaskAction
+import com.blacksquircle.ui.feature.explorer.api.manager.TaskManager
 import com.blacksquircle.ui.feature.explorer.api.model.TaskType
 import com.blacksquircle.ui.feature.explorer.createFile
 import com.blacksquircle.ui.feature.explorer.createFolder
-import com.blacksquircle.ui.feature.explorer.data.manager.TaskAction
-import com.blacksquircle.ui.feature.explorer.data.manager.TaskManager
 import com.blacksquircle.ui.feature.explorer.data.repository.ExplorerRepositoryImpl
 import com.blacksquircle.ui.feature.explorer.data.workspace.DefaultWorkspaceSource
 import com.blacksquircle.ui.feature.explorer.data.workspace.ServerWorkspaceSource

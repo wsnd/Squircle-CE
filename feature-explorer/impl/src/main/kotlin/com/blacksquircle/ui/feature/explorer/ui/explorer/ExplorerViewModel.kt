@@ -329,12 +329,9 @@ internal class ExplorerViewModel @Inject constructor(
             }
 
             if (nodeToRefresh != null) {
-                // If refreshing root, clear cache to force deep refresh of expanded folders
-                if (nodeToRefresh.isRoot) {
-                    val root = cache[NodeKey.Root]
-                    cache.clear()
-                    cache[NodeKey.Root] = root.orEmpty()
-                }
+                // Only the refreshed folder is listed again. Dropping the cache
+                // here would empty the expanded folders below it without ever
+                // refilling them, so their children vanish until the next click.
                 loadFiles(nodeToRefresh)
             }
 

@@ -56,7 +56,6 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import com.blacksquircle.ui.feature.editor.R
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -71,8 +70,8 @@ import com.blacksquircle.ui.ds.button.IconButtonStyleDefaults
 import com.blacksquircle.ui.ds.button.TextButton
 import com.blacksquircle.ui.ds.progress.CircularProgress
 import com.blacksquircle.ui.ds.textfield.TextField
+import com.blacksquircle.ui.feature.editor.R
 import com.blacksquircle.ui.feature.editor.domain.GlobalSearchUseCase.FileSearchResult
-import com.blacksquircle.ui.feature.editor.domain.GlobalSearchUseCase.SearchResult
 import com.blacksquircle.ui.feature.editor.ui.editor.compose.menu.FindMenu
 import com.blacksquircle.ui.feature.editor.ui.editor.model.GlobalSearchState
 import com.blacksquircle.ui.ds.R as UiR
@@ -128,100 +127,71 @@ internal fun GlobalSearchPanel(
                 .fillMaxSize()
                 .padding(vertical = 4.dp)
         ) {
-        // Search input area
-        Row(Modifier.padding(horizontal = 4.dp)) {
-            IconButton(
-                iconResId = if (searchState.replaceShown) {
-                    UiR.drawable.ic_menu_down
-                } else {
-                    UiR.drawable.ic_menu_right
-                },
-                iconButtonStyle = IconButtonStyleDefaults.Secondary,
-                iconButtonSize = IconButtonSizeDefaults.XS,
-                onClick = onToggleReplaceClicked,
-            )
-
-            Column(Modifier.weight(1f)) {
-                var menuExpanded by rememberSaveable { mutableStateOf(false) }
-
-                TextField(
-                    inputText = searchState.query,
-                    onInputChanged = onQueryChanged,
-                    placeholderText = stringResource(R.string.editor_global_search_placeholder),
-                    keyboardOptions = KeyboardOptions(
-                        imeAction = ImeAction.Search,
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onSearch = {
-                            if (searchState.replaceShown) {
-                                replaceFocusRequester.requestFocus()
-                            } else {
-                                onSearchSubmitted()
-                            }
-                        },
-                    ),
-                    endContent = {
-                        Row {
-                            IconButton(
-                                iconResId = UiR.drawable.ic_dots_vertical,
-                                iconButtonStyle = IconButtonStyleDefaults.Secondary,
-                                iconButtonSize = IconButtonSizeDefaults.XS,
-                                onClick = { menuExpanded = !menuExpanded },
-                                anchor = {
-                                    FindMenu(
-                                        expanded = menuExpanded,
-                                        onDismiss = { menuExpanded = false },
-                                        regex = searchState.regex,
-                                        matchCase = searchState.matchCase,
-                                        wordsOnly = searchState.wordsOnly,
-                                        onRegexClicked = { menuExpanded = false; onRegexClicked() },
-                                        onMatchCaseClicked = { menuExpanded = false; onMatchCaseClicked() },
-                                        onWordsOnlyClicked = { menuExpanded = false; onWordsOnlyClicked() },
-                                    )
-                                }
-                            )
-                        }
+            // Search input area
+            Row(Modifier.padding(horizontal = 4.dp)) {
+                IconButton(
+                    iconResId = if (searchState.replaceShown) {
+                        UiR.drawable.ic_menu_down
+                    } else {
+                        UiR.drawable.ic_menu_right
                     },
-                    modifier = Modifier
-                        .padding(horizontal = 4.dp)
-                        .focusRequester(findFocusRequester)
-                        .onPreviewKeyEvent { event ->
-                            if ((event.key == Key.Enter || event.key == Key.NumPadEnter) && event.type == KeyEventType.KeyDown) {
+                    iconButtonStyle = IconButtonStyleDefaults.Secondary,
+                    iconButtonSize = IconButtonSizeDefaults.XS,
+                    onClick = onToggleReplaceClicked,
+                )
+
+                Column(Modifier.weight(1f)) {
+                    var menuExpanded by rememberSaveable { mutableStateOf(false) }
+
+                    TextField(
+                        inputText = searchState.query,
+                        onInputChanged = onQueryChanged,
+                        placeholderText = stringResource(R.string.editor_global_search_placeholder),
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Search,
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onSearch = {
                                 if (searchState.replaceShown) {
                                     replaceFocusRequester.requestFocus()
                                 } else {
                                     onSearchSubmitted()
                                 }
-                                true
-                            } else {
-                                false
+                            },
+                        ),
+                        endContent = {
+                            Row {
+                                IconButton(
+                                    iconResId = UiR.drawable.ic_dots_vertical,
+                                    iconButtonStyle = IconButtonStyleDefaults.Secondary,
+                                    iconButtonSize = IconButtonSizeDefaults.XS,
+                                    onClick = { menuExpanded = !menuExpanded },
+                                    anchor = {
+                                        FindMenu(
+                                            expanded = menuExpanded,
+                                            onDismiss = { menuExpanded = false },
+                                            regex = searchState.regex,
+                                            matchCase = searchState.matchCase,
+                                            wordsOnly = searchState.wordsOnly,
+                                            onRegexClicked = { menuExpanded = false; onRegexClicked() },
+                                            onMatchCaseClicked = { menuExpanded = false; onMatchCaseClicked() },
+                                            onWordsOnlyClicked = { menuExpanded = false; onWordsOnlyClicked() },
+                                        )
+                                    }
+                                )
                             }
-                        }
-                )
-
-                LaunchedEffect(Unit) {
-                    findFocusRequester.requestFocus()
-                }
-
-                if (searchState.replaceShown) {
-                    Spacer(Modifier.height(8.dp))
-
-                    TextField(
-                        inputText = searchState.replaceText,
-                        onInputChanged = onReplaceTextChanged,
-                        placeholderText = stringResource(R.string.editor_global_search_replace_placeholder),
-                        keyboardOptions = KeyboardOptions(
-                            imeAction = ImeAction.Search,
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onSearch = { onSearchSubmitted() },
-                        ),
+                        },
                         modifier = Modifier
                             .padding(horizontal = 4.dp)
-                            .focusRequester(replaceFocusRequester)
+                            .focusRequester(findFocusRequester)
                             .onPreviewKeyEvent { event ->
-                                if ((event.key == Key.Enter || event.key == Key.NumPadEnter) && event.type == KeyEventType.KeyDown) {
-                                    onSearchSubmitted()
+                                val isEnterPressed = event.key == Key.Enter || event.key == Key.NumPadEnter
+                                if (isEnterPressed && event.type == KeyEventType.KeyDown) {
+                                    if (searchState.replaceShown) {
+                                        replaceFocusRequester.requestFocus()
+                                    } else {
+                                        onSearchSubmitted()
+                                    }
                                     true
                                 } else {
                                     false
@@ -229,168 +199,203 @@ internal fun GlobalSearchPanel(
                             }
                     )
 
-                    LaunchedEffect(searchState.replaceShown) {
-                        replaceFocusRequester.requestFocus()
+                    LaunchedEffect(Unit) {
+                        findFocusRequester.requestFocus()
                     }
+
+                    if (searchState.replaceShown) {
+                        Spacer(Modifier.height(8.dp))
+
+                        TextField(
+                            inputText = searchState.replaceText,
+                            onInputChanged = onReplaceTextChanged,
+                            placeholderText = stringResource(R.string.editor_global_search_replace_placeholder),
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Search,
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onSearch = { onSearchSubmitted() },
+                            ),
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .focusRequester(replaceFocusRequester)
+                                .onPreviewKeyEvent { event ->
+                                    val isEnterPressed = event.key == Key.Enter || event.key == Key.NumPadEnter
+                                    if (isEnterPressed && event.type == KeyEventType.KeyDown) {
+                                        onSearchSubmitted()
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }
+                        )
+
+                        LaunchedEffect(searchState.replaceShown) {
+                            replaceFocusRequester.requestFocus()
+                        }
+                    }
+                }
+
+                IconButton(
+                    iconResId = UiR.drawable.ic_close,
+                    iconButtonStyle = IconButtonStyleDefaults.Secondary,
+                    iconButtonSize = IconButtonSizeDefaults.XS,
+                    onClick = onCloseSearchClicked,
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // Action buttons
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .padding(horizontal = 4.dp)
+                    .fillMaxWidth()
+            ) {
+                TextButton(
+                    text = stringResource(R.string.editor_global_search_button_search),
+                    onClick = onSearchSubmitted,
+                    debounce = false,
+                    modifier = Modifier.weight(1f)
+                )
+                if (searchState.replaceShown && searchState.results.isNotEmpty()) {
+                    TextButton(
+                        text = stringResource(R.string.editor_global_search_button_replace_all),
+                        onClick = onReplaceAllClicked,
+                        debounce = true,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
-            IconButton(
-                iconResId = UiR.drawable.ic_close,
-                iconButtonStyle = IconButtonStyleDefaults.Secondary,
-                iconButtonSize = IconButtonSizeDefaults.XS,
-                onClick = onCloseSearchClicked,
-            )
-        }
+            Spacer(Modifier.height(8.dp))
 
-        Spacer(Modifier.height(8.dp))
+            Divider(color = SquircleTheme.colors.colorOutline.copy(alpha = 0.3f))
 
-        // Action buttons
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier
-                .padding(horizontal = 4.dp)
-                .fillMaxWidth()
-        ) {
-            TextButton(
-                text = stringResource(R.string.editor_global_search_button_search),
-                onClick = onSearchSubmitted,
-                debounce = false,
-                modifier = Modifier.weight(1f)
-            )
-            if (searchState.replaceShown && searchState.results.isNotEmpty()) {
-                TextButton(
-                    text = stringResource(R.string.editor_global_search_button_replace_all),
-                    onClick = onReplaceAllClicked,
-                    debounce = true,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
+            // Search results area
+            when {
+                searchState.isSearching -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgress()
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                text = stringResource(R.string.editor_global_search_searching),
+                                style = SquircleTheme.typography.text14Regular,
+                                color = SquircleTheme.colors.colorTextAndIconSecondary
+                            )
+                        }
+                    }
+                }
 
-        Spacer(Modifier.height(8.dp))
+                searchState.results.isNotEmpty() -> {
+                    // Results summary
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = stringResource(
+                                R.string.editor_global_search_results_summary,
+                                searchState.totalMatchCount,
+                                searchState.totalFileCount,
+                            ),
+                            style = SquircleTheme.typography.text12Regular,
+                            color = SquircleTheme.colors.colorTextAndIconSecondary
+                        )
+                        TextButton(
+                            text = stringResource(R.string.editor_global_search_button_clear),
+                            onClick = onClearClicked,
+                            debounce = false,
+                        )
+                    }
 
-        Divider(color = SquircleTheme.colors.colorOutline.copy(alpha = 0.3f))
+                    Divider(color = SquircleTheme.colors.colorOutline.copy(alpha = 0.3f))
 
-        // Search results area
-        when {
-            searchState.isSearching -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgress()
+                    // File results list
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(0.dp)
+                    ) {
+                        items(searchState.results) { fileResult ->
+                            FileSearchResultItem(
+                                result = fileResult,
+                                searchQuery = searchState.query,
+                                showReplaceAction = searchState.replaceShown,
+                                onClick = { onResultClicked(fileResult) },
+                                onReplace = { onReplaceResultClicked(fileResult) },
+                            )
+                        }
+                    }
+                }
+
+                searchState.query.isNotEmpty() && !searchState.isSearching -> {
+                    // No results
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = UiR.drawable.ic_file_find),
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = SquircleTheme.colors.colorTextAndIconSecondary
+                        )
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            text = stringResource(R.string.editor_global_search_searching),
+                            text = stringResource(R.string.editor_global_search_no_results),
                             style = SquircleTheme.typography.text14Regular,
                             color = SquircleTheme.colors.colorTextAndIconSecondary
                         )
-                    }
-                }
-            }
-
-            searchState.results.isNotEmpty() -> {
-                // Results summary
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = stringResource(R.string.editor_global_search_results_summary, searchState.totalMatchCount, searchState.totalFileCount),
-                        style = SquircleTheme.typography.text12Regular,
-                        color = SquircleTheme.colors.colorTextAndIconSecondary
-                    )
-                    TextButton(
-                        text = stringResource(R.string.editor_global_search_button_clear),
-                        onClick = onClearClicked,
-                        debounce = false,
-                    )
-                }
-
-                Divider(color = SquircleTheme.colors.colorOutline.copy(alpha = 0.3f))
-
-                // File results list
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(0.dp)
-                ) {
-                    items(searchState.results) { fileResult ->
-                        FileSearchResultItem(
-                            result = fileResult,
-                            searchQuery = searchState.query,
-                            showReplaceAction = searchState.replaceShown,
-                            onClick = { onResultClicked(fileResult) },
-                            onReplace = { onReplaceResultClicked(fileResult) },
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.editor_global_search_no_results_detail, searchState.query),
+                            style = SquircleTheme.typography.text12Regular,
+                            color = SquircleTheme.colors.colorTextAndIconSecondary.copy(alpha = 0.6f)
                         )
                     }
                 }
-            }
 
-            searchState.query.isNotEmpty() && !searchState.isSearching -> {
-                // No results
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        painter = painterResource(id = UiR.drawable.ic_file_find),
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = SquircleTheme.colors.colorTextAndIconSecondary
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        text = stringResource(R.string.editor_global_search_no_results),
-                        style = SquircleTheme.typography.text14Regular,
-                        color = SquircleTheme.colors.colorTextAndIconSecondary
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.editor_global_search_no_results_detail, searchState.query),
-                        style = SquircleTheme.typography.text12Regular,
-                        color = SquircleTheme.colors.colorTextAndIconSecondary.copy(alpha = 0.6f)
-                    )
+                else -> {
+                    // Empty state
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Top
+                    ) {
+                        Icon(
+                            painter = painterResource(id = UiR.drawable.ic_file_find),
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = SquircleTheme.colors.colorTextAndIconSecondary
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = stringResource(R.string.editor_global_search_empty_hint),
+                            style = SquircleTheme.typography.text14Regular,
+                            color = SquircleTheme.colors.colorTextAndIconSecondary
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.editor_global_search_empty_subtitle),
+                            style = SquircleTheme.typography.text12Regular,
+                            color = SquircleTheme.colors.colorTextAndIconSecondary.copy(alpha = 0.6f)
+                        )
+                    }
                 }
-            }
-
-            else -> {
-                // Empty state
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Top
-                ) {
-                    Icon(
-                        painter = painterResource(id = UiR.drawable.ic_file_find),
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = SquircleTheme.colors.colorTextAndIconSecondary
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        text = stringResource(R.string.editor_global_search_empty_hint),
-                        style = SquircleTheme.typography.text14Regular,
-                        color = SquircleTheme.colors.colorTextAndIconSecondary
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.editor_global_search_empty_subtitle),
-                        style = SquircleTheme.typography.text12Regular,
-                        color = SquircleTheme.colors.colorTextAndIconSecondary.copy(alpha = 0.6f)
-                    )
-                }
-            }
             }
         }
     }

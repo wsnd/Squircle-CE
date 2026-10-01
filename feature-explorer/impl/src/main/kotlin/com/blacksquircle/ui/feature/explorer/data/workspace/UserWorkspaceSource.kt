@@ -17,8 +17,8 @@
 package com.blacksquircle.ui.feature.explorer.data.workspace
 
 import com.blacksquircle.ui.core.database.dao.workspace.WorkspaceDao
-import com.blacksquircle.ui.feature.explorer.data.mapper.WorkspaceMapper
 import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceModel
+import com.blacksquircle.ui.feature.explorer.data.mapper.WorkspaceMapper
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 

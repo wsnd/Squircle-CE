@@ -134,7 +134,8 @@ internal fun SearchPanel(
                         .padding(horizontal = 8.dp)
                         .focusRequester(findFocusRequester)
                         .onPreviewKeyEvent { event ->
-                            if ((event.key == Key.Enter || event.key == Key.NumPadEnter) && event.type == KeyEventType.KeyDown) {
+                            val isEnterPressed = event.key == Key.Enter || event.key == Key.NumPadEnter
+                            if (isEnterPressed && event.type == KeyEventType.KeyDown) {
                                 if (searchState.replaceShown) {
                                     replaceFocusRequester.requestFocus()
                                 } else {
@@ -168,7 +169,8 @@ internal fun SearchPanel(
                             .padding(horizontal = 8.dp)
                             .focusRequester(replaceFocusRequester)
                             .onPreviewKeyEvent { event ->
-                                if ((event.key == Key.Enter || event.key == Key.NumPadEnter) && event.type == KeyEventType.KeyDown) {
+                                val isEnterPressed = event.key == Key.Enter || event.key == Key.NumPadEnter
+                                if (isEnterPressed && event.type == KeyEventType.KeyDown) {
                                     onReplaceMatchClicked()
                                     true
                                 } else {

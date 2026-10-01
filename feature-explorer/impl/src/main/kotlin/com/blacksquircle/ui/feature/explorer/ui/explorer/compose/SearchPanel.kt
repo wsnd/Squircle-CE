@@ -84,141 +84,141 @@ internal fun SearchPanel(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
         ) {
-        // Search input field
-        TextField(
-            inputText = searchQuery,
-            onInputChanged = onQueryChanged,
-            placeholderText = stringResource(R.string.explorer_search_placeholder),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            endContent = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(
-                        iconResId = UiR.drawable.ic_close,
-                        iconButtonSize = IconButtonSizeDefaults.XS,
-                        onClick = onClearClicked
+            // Search input field
+            TextField(
+                inputText = searchQuery,
+                onInputChanged = onQueryChanged,
+                placeholderText = stringResource(R.string.explorer_search_placeholder),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                endContent = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(
+                            iconResId = UiR.drawable.ic_close,
+                            iconButtonSize = IconButtonSizeDefaults.XS,
+                            onClick = onClearClicked
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            // Search options
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Include pattern
+                TextField(
+                    inputText = includePattern,
+                    onInputChanged = { includePattern = it },
+                    placeholderText = stringResource(R.string.explorer_search_include_placeholder),
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Exclude pattern
+                TextField(
+                    inputText = excludePattern,
+                    onInputChanged = { excludePattern = it },
+                    placeholderText = stringResource(R.string.explorer_search_exclude_placeholder),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // Options row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Match case toggle
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { matchCase = !matchCase }
+                ) {
+                    androidx.compose.material.Text(
+                        text = if (matchCase) "[✓]" else "[ ]",
+                        style = SquircleTheme.typography.text14Regular,
+                        color = if (matchCase) SquircleTheme.colors.colorPrimary else Color.Gray
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    androidx.compose.material.Text(
+                        text = stringResource(R.string.explorer_search_match_case_label),
+                        style = SquircleTheme.typography.text14Regular,
+                        color = if (matchCase) SquircleTheme.colors.colorTextAndIconPrimary else Color.Gray
                     )
                 }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
 
-        Spacer(Modifier.height(8.dp))
-
-        // Search options
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Include pattern
-            TextField(
-                inputText = includePattern,
-                onInputChanged = { includePattern = it },
-                placeholderText = stringResource(R.string.explorer_search_include_placeholder),
-                modifier = Modifier.weight(1f)
-            )
-
-            // Exclude pattern
-            TextField(
-                inputText = excludePattern,
-                onInputChanged = { excludePattern = it },
-                placeholderText = stringResource(R.string.explorer_search_exclude_placeholder),
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // Options row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Match case toggle
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { matchCase = !matchCase }
-            ) {
-                androidx.compose.material.Text(
-                    text = if (matchCase) "[✓]" else "[ ]",
-                    style = SquircleTheme.typography.text14Regular,
-                    color = if (matchCase) SquircleTheme.colors.colorPrimary else Color.Gray
-                )
-                Spacer(Modifier.width(4.dp))
-                androidx.compose.material.Text(
-                    text = stringResource(R.string.explorer_search_match_case_label),
-                    style = SquircleTheme.typography.text14Regular,
-                    color = if (matchCase) SquircleTheme.colors.colorTextAndIconPrimary else Color.Gray
-                )
-            }
-
-            // Regex toggle
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { useRegex = !useRegex }
-            ) {
-                androidx.compose.material.Text(
-                    text = if (useRegex) "[✓]" else "[ ]",
-                    style = SquircleTheme.typography.text14Regular,
-                    color = if (useRegex) SquircleTheme.colors.colorPrimary else Color.Gray
-                )
-                Spacer(Modifier.width(4.dp))
-                androidx.compose.material.Text(
-                    text = stringResource(R.string.explorer_search_regex_label),
-                    style = SquircleTheme.typography.text14Regular,
-                    color = if (useRegex) SquircleTheme.colors.colorTextAndIconPrimary else Color.Gray
-                )
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // Search results
-        if (isSearching) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                com.blacksquircle.ui.ds.progress.CircularProgress()
-            }
-        } else if (searchResults.isEmpty() && searchQuery.isNotEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                androidx.compose.material.Text(
-                    text = stringResource(R.string.explorer_search_no_results),
-                    style = SquircleTheme.typography.text16Regular,
-                    color = Color.Gray
-                )
-            }
-        } else if (searchResults.isNotEmpty()) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                items(searchResults) { result ->
-                    SearchResultItem(
-                        result = result,
-                        onClick = { onResultClicked(result.file) }
+                // Regex toggle
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { useRegex = !useRegex }
+                ) {
+                    androidx.compose.material.Text(
+                        text = if (useRegex) "[✓]" else "[ ]",
+                        style = SquircleTheme.typography.text14Regular,
+                        color = if (useRegex) SquircleTheme.colors.colorPrimary else Color.Gray
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    androidx.compose.material.Text(
+                        text = stringResource(R.string.explorer_search_regex_label),
+                        style = SquircleTheme.typography.text14Regular,
+                        color = if (useRegex) SquircleTheme.colors.colorTextAndIconPrimary else Color.Gray
                     )
                 }
             }
-        } else {
-            // Empty state - show instructions
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-                contentAlignment = Alignment.Center
-            ) {
-                androidx.compose.material.Text(
-                    text = stringResource(R.string.explorer_search_instructions),
-                    style = SquircleTheme.typography.text16Regular,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(16.dp)
-                )
+
+            Spacer(Modifier.height(16.dp))
+
+            // Search results
+            if (isSearching) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    com.blacksquircle.ui.ds.progress.CircularProgress()
+                }
+            } else if (searchResults.isEmpty() && searchQuery.isNotEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.material.Text(
+                        text = stringResource(R.string.explorer_search_no_results),
+                        style = SquircleTheme.typography.text16Regular,
+                        color = Color.Gray
+                    )
+                }
+            } else if (searchResults.isNotEmpty()) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(searchResults) { result ->
+                        SearchResultItem(
+                            result = result,
+                            onClick = { onResultClicked(result.file) }
+                        )
+                    }
+                }
+            } else {
+                // Empty state - show instructions
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.material.Text(
+                        text = stringResource(R.string.explorer_search_instructions),
+                        style = SquircleTheme.typography.text16Regular,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
             }
-        }
         }
     }
 }

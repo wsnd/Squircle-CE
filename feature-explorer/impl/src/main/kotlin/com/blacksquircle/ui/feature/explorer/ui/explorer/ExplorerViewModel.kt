@@ -16,7 +16,6 @@
 
 package com.blacksquircle.ui.feature.explorer.ui.explorer
 
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -32,6 +31,11 @@ import com.blacksquircle.ui.core.settings.SettingsManager.Companion.KEY_SORT_MOD
 import com.blacksquircle.ui.feature.editor.api.interactor.EditorInteractor
 import com.blacksquircle.ui.feature.editor.api.provider.FileIconProvider
 import com.blacksquircle.ui.feature.explorer.R
+import com.blacksquircle.ui.feature.explorer.api.manager.TaskManager
+import com.blacksquircle.ui.feature.explorer.api.model.TaskStatus
+import com.blacksquircle.ui.feature.explorer.api.model.TaskType
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceModel
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceType
 import com.blacksquircle.ui.feature.explorer.api.navigation.AddWorkspaceRoute
 import com.blacksquircle.ui.feature.explorer.api.navigation.CloneRepoRoute
 import com.blacksquircle.ui.feature.explorer.api.navigation.CompressFileRoute
@@ -43,7 +47,7 @@ import com.blacksquircle.ui.feature.explorer.api.navigation.RenameFileRoute
 import com.blacksquircle.ui.feature.explorer.api.navigation.ServerAuthRoute
 import com.blacksquircle.ui.feature.explorer.api.navigation.StorageDeniedRoute
 import com.blacksquircle.ui.feature.explorer.api.navigation.TaskRoute
-import com.blacksquircle.ui.feature.explorer.api.manager.TaskManager
+import com.blacksquircle.ui.feature.explorer.api.repository.ExplorerRepository
 import com.blacksquircle.ui.feature.explorer.data.node.NodeBuilderOptions
 import com.blacksquircle.ui.feature.explorer.data.node.async.AsyncNodeBuilder
 import com.blacksquircle.ui.feature.explorer.data.node.ensureCommonParentKey
@@ -53,11 +57,6 @@ import com.blacksquircle.ui.feature.explorer.data.node.removeNode
 import com.blacksquircle.ui.feature.explorer.data.node.updateNode
 import com.blacksquircle.ui.feature.explorer.domain.model.ErrorAction
 import com.blacksquircle.ui.feature.explorer.domain.model.SortMode
-import com.blacksquircle.ui.feature.explorer.api.model.TaskStatus
-import com.blacksquircle.ui.feature.explorer.api.model.TaskType
-import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceModel
-import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceType
-import com.blacksquircle.ui.feature.explorer.api.repository.ExplorerRepository
 import com.blacksquircle.ui.feature.explorer.ui.explorer.model.ErrorState
 import com.blacksquircle.ui.feature.explorer.ui.explorer.model.FileNode
 import com.blacksquircle.ui.feature.explorer.ui.explorer.model.NodeKey
@@ -88,7 +87,6 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import java.io.File
 import javax.inject.Inject
 import javax.inject.Provider
 import com.blacksquircle.ui.ds.R as UiR
@@ -321,7 +319,9 @@ internal class ExplorerViewModel @Inject constructor(
         viewModelScope.launch {
             val selected = selectedNodes.firstOrNull()
             val nodeToRefresh = when {
-                selected != null -> if (selected.isDirectory) selected else {
+                selected != null -> if (selected.isDirectory) {
+                    selected
+                } else {
                     val parentKey = cache.findParentKey(selected.key)
                     if (parentKey != null) cache.findNodeByKey(parentKey) else null
                 }

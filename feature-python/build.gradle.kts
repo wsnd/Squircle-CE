@@ -92,7 +92,7 @@ android {
                 }
             }
         }
-        
+
         // Specify which ABIs to build
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
@@ -120,8 +120,8 @@ android {
             version = "3.22.1"
         }
     }
-    
-    ndkVersion = "27.0.12077973"  // Use project's NDK version
+
+    ndkVersion = "27.0.12077973" // Use project's NDK version
 }
 
 // ---------------------------------------------------------------------------
@@ -140,10 +140,10 @@ dependencies {
     // Sora Editor with Python support
     implementation(libs.sora.editor)
     implementation(libs.sora.textmate)
-    
+
     // Note: Python execution uses system Python via ProcessBuilder
     // For better performance, consider integrating Chaquopy separately
-    
+
     implementation(libs.androidx.lifecycle.service)
 
     implementation(libs.google.dagger)

@@ -27,11 +27,11 @@ import kotlinx.coroutines.flow.asStateFlow
  * Simple event bus for cross-module communication
  */
 object EventBus {
-    
+
     // Set replay = 1 to handle cases where command is sent before terminal is fully ready
     private val _events = MutableSharedFlow<AppEvent>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
     val events: SharedFlow<AppEvent> = _events
-    
+
     private val _terminalReady = MutableStateFlow(false)
     val terminalReady: StateFlow<Boolean> = _terminalReady.asStateFlow()
 

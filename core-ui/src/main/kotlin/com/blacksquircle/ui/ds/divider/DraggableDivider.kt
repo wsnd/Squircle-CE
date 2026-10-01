@@ -54,7 +54,7 @@ fun VerticalDraggableDivider(
                         val event = awaitPointerEvent(pass = PointerEventPass.Initial)
                         val dragEvent = event.changes.find { it.id == pointer }
                         if (dragEvent == null || dragEvent.isConsumed) break
-                        
+
                         if (dragEvent.pressed) {
                             val delta = dragEvent.position.x - dragEvent.previousPosition.x
                             if (delta != 0f) {
@@ -84,7 +84,7 @@ fun HorizontalDraggableDivider(
     onDrag: (Dp) -> Unit,
     modifier: Modifier = Modifier,
     thickness: Dp = 1.dp,
-    hitSize: Dp = 20.dp, 
+    hitSize: Dp = 20.dp,
     color: Color = SquircleTheme.colors.colorOutline
 ) {
     val currentOnDrag by rememberUpdatedState(onDrag)
@@ -100,7 +100,7 @@ fun HorizontalDraggableDivider(
                         val event = awaitPointerEvent(pass = PointerEventPass.Initial)
                         val dragEvent = event.changes.find { it.id == pointer }
                         if (dragEvent == null || dragEvent.isConsumed) break
-                        
+
                         if (dragEvent.pressed) {
                             val delta = dragEvent.position.y - dragEvent.previousPosition.y
                             if (delta != 0f) {

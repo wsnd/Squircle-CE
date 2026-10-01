@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.onConsumedWindowInsetsChanged
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material.DrawerValue
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.ScaffoldState
 import androidx.compose.material.SnackbarHost
 import androidx.compose.material.SnackbarHostState
 import androidx.compose.material.Surface
@@ -166,13 +165,26 @@ private fun ScaffoldLayout(
             val fabHeight = fabPlaceables.fastMaxBy(Placeable::height)?.height ?: 0
             if (fabWidth != 0 && fabHeight != 0) {
                 val fabLeftOffset = when (fabPosition) {
-                    FabPosition.Start -> if (layoutDirection == LayoutDirection.Ltr) FabSpacing.roundToPx() else layoutWidth - FabSpacing.roundToPx() - fabWidth
-                    FabPosition.End -> if (layoutDirection == LayoutDirection.Ltr) layoutWidth - FabSpacing.roundToPx() - fabWidth else FabSpacing.roundToPx()
+                    FabPosition.Start -> if (layoutDirection == LayoutDirection.Ltr) {
+                        FabSpacing.roundToPx()
+                    } else {
+                        layoutWidth - FabSpacing.roundToPx() - fabWidth
+                    }
+
+                    FabPosition.End -> if (layoutDirection == LayoutDirection.Ltr) {
+                        layoutWidth - FabSpacing.roundToPx() - fabWidth
+                    } else {
+                        FabSpacing.roundToPx()
+                    }
                     else -> (layoutWidth - fabWidth) / 2
                 }
                 FabPlacement(isDocked = isFabDocked, left = fabLeftOffset, width = fabWidth, height = fabHeight)
-            } else null
-        } else null
+            } else {
+                null
+            }
+        } else {
+            null
+        }
 
         val bottomBarPlaceables = subcompose(ScaffoldLayoutContent.BottomBar) {
             CompositionLocalProvider(LocalFabPlacement provides fabPlacement, content = bottomBar)
@@ -180,14 +192,23 @@ private fun ScaffoldLayout(
 
         val bottomBarHeight = bottomBarPlaceables.fastMaxBy(Placeable::height)?.height
         val fabOffsetFromBottom = fabPlacement?.let {
-            if (bottomBarHeight == null) it.height + FabSpacing.roundToPx() + contentWindowInsets.getBottom(this@SubcomposeLayout)
-            else if (isFabDocked) bottomBarHeight + (it.height / 2)
-            else bottomBarHeight + it.height + FabSpacing.roundToPx()
+            if (bottomBarHeight == null) {
+                it.height + FabSpacing.roundToPx() + contentWindowInsets.getBottom(this@SubcomposeLayout)
+            } else if (isFabDocked) {
+                bottomBarHeight + (it.height / 2)
+            } else {
+                bottomBarHeight + it.height + FabSpacing.roundToPx()
+            }
         }
 
         val snackbarOffsetFromBottom = if (snackbarHeight != 0) {
-            snackbarHeight + (fabOffsetFromBottom ?: bottomBarHeight ?: contentWindowInsets.getBottom(this@SubcomposeLayout))
-        } else 0
+            val bottomOffset = fabOffsetFromBottom
+                ?: bottomBarHeight
+                ?: contentWindowInsets.getBottom(this@SubcomposeLayout)
+            snackbarHeight + bottomOffset
+        } else {
+            0
+        }
 
         val bodyContentHeight = layoutHeight - topBarHeight
 
@@ -195,7 +216,11 @@ private fun ScaffoldLayout(
             val insets = contentWindowInsets.asPaddingValues(this@SubcomposeLayout)
             val innerPadding = PaddingValues(
                 top = if (topBarPlaceables.isEmpty()) insets.calculateTopPadding() else 0.dp,
-                bottom = if (bottomBarPlaceables.isEmpty() || bottomBarHeight == null) insets.calculateBottomPadding() else bottomBarHeight.toDp(),
+                bottom = if (bottomBarPlaceables.isEmpty() || bottomBarHeight == null) {
+                    insets.calculateBottomPadding()
+                } else {
+                    bottomBarHeight.toDp()
+                },
                 start = insets.calculateStartPadding((this@SubcomposeLayout).layoutDirection),
                 end = insets.calculateEndPadding((this@SubcomposeLayout).layoutDirection)
             )

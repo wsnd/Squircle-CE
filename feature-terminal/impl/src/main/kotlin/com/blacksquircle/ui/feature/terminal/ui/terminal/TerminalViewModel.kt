@@ -59,8 +59,8 @@ internal class TerminalViewModel @AssistedInject constructor(
 
     private var sessions = emptyList<SessionModel>()
     private var selectedSession: String? = null
-    private var internalPendingCommand: ShellArgs? = null 
-    private var isInitializing = false 
+    private var internalPendingCommand: ShellArgs? = null
+    private var isInitializing = false
 
     init {
         loadSessions()
@@ -69,11 +69,11 @@ internal class TerminalViewModel @AssistedInject constructor(
     fun onBackClicked() {
         navigator.goBack()
     }
-    
+
     fun executeCommandInTerminal(command: String) {
         viewModelScope.launch {
             Timber.d("TERMINAL_EXEC: Received command -> $command")
-            
+
             val currentSession = sessions.find { it.id == selectedSession }
             if (currentSession != null && !isInitializing) {
                 Timber.d("TERMINAL_EXEC: Session exists and ready, writing directly")
@@ -81,7 +81,7 @@ internal class TerminalViewModel @AssistedInject constructor(
             } else {
                 Timber.d("TERMINAL_EXEC: No session ready, queuing for new session...")
                 // Capture command for the session that's about to be created
-                internalPendingCommand = ShellArgs(command = command) 
+                internalPendingCommand = ShellArgs(command = command)
                 if (!isInitializing && sessions.isEmpty()) {
                     onCreateSessionClicked()
                 }
@@ -97,9 +97,9 @@ internal class TerminalViewModel @AssistedInject constructor(
     }
 
     fun onCreateSessionClicked() {
-        if (isInitializing) return 
+        if (isInitializing) return
         isInitializing = true
-        
+
         viewModelScope.launch {
             try {
                 createRuntime { runtime ->
@@ -113,7 +113,7 @@ internal class TerminalViewModel @AssistedInject constructor(
                             selectedSession = selectedSession,
                         )
                     }
-                    internalPendingCommand = null 
+                    internalPendingCommand = null
 
                     viewModelScope.launch {
                         _viewEvent.send(TerminalViewEvent.ScrollToEnd)
@@ -198,7 +198,7 @@ internal class TerminalViewModel @AssistedInject constructor(
     private fun loadSessions() {
         if (isInitializing) return
         isInitializing = true
-        
+
         viewModelScope.launch {
             try {
                 sessions = sessionManager.sessions()

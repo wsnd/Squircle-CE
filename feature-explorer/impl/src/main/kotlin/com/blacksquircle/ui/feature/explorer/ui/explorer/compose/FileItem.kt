@@ -17,8 +17,6 @@
 package com.blacksquircle.ui.feature.explorer.ui.explorer.compose
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,7 +69,7 @@ internal fun FileItem(
     onLongClick: () -> Unit = {},
 ) {
     val treeLineColor = SquircleTheme.colors.colorOutline.copy(alpha = 0.5f)
-    
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier

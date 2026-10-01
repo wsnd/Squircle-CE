@@ -22,12 +22,12 @@ import java.io.File
 
 /**
  * Python Standard Library Extractor
- * 
+ *
  * Copies Python standard library from assets to app's data directory
  * so that the embedded CPython interpreter can find and use it.
  */
 object PythonStdlibExtractor {
-    
+
     private const val TAG = "PythonStdlibExtractor"
     private const val ASSET_PATH = "python3.14"
     private const val PYTHON_DIR_NAME = "python"
@@ -44,7 +44,7 @@ object PythonStdlibExtractor {
     // Bump to force re-extraction of the standard library after app updates
     // (assets may carry new/changed files such as the ensurepip wheel).
     private const val EXTRACTION_VERSION = 4
-    
+
     /**
      * Preconfigured pip settings, installed to $PYTHONHOME/pip.conf (pip's
      * site-level config location, resolved from sys.prefix). Adds two
@@ -58,21 +58,21 @@ object PythonStdlibExtractor {
             https://nsyhykui.github.io/python_wheels_for_termux/simple/
             https://termux-user-repository.github.io/pypi/
     """.trimIndent() + "\n"
-    
+
     /**
      * Extract Python standard library if not already extracted
-     * 
+     *
      * @param context Application context
      * @return Path to extracted Python directory, or null if extraction failed
      */
     fun extractIfNeeded(context: Context): String? {
         val pythonDir = File(context.filesDir, PYTHON_DIR_NAME) // This will be PYTHONHOME
         val stdlibDir = File(pythonDir, "lib/python3.14")
-        
+
         // Check if correct architecture is already extracted
         val abi = android.os.Build.SUPPORTED_ABIS[0]
         val markerFile = File(pythonDir, "extracted_v${EXTRACTION_VERSION}_$abi")
-        
+
         if (markerFile.exists()) {
             Log.i(TAG, "Python stdlib for $abi already extracted at: ${pythonDir.absolutePath}")
             // pip.conf is refreshed on every launch so index changes in app
@@ -86,22 +86,22 @@ object PythonStdlibExtractor {
                 pythonDir.deleteRecursively()
             }
             stdlibDir.mkdirs()
-            
+
             Log.i(TAG, "Extracting Python stdlib for $abi...")
-            
+
             // LOG ALL ASSETS IN THE ROOT
             val allRootAssets = context.assets.list(ASSET_PATH)
             Log.e(TAG, "ALL ASSETS IN $ASSET_PATH: ${allRootAssets?.joinToString(", ")}")
 
             // Recursively copy from assets/python3.14 to files/python/lib/python3.14
             copyAssets(context, ASSET_PATH, stdlibDir)
-            
+
             // Create site-packages directory if it doesn't exist
             val sitePackages = File(stdlibDir, "site-packages")
             if (!sitePackages.exists()) {
                 sitePackages.mkdirs()
             }
-            
+
             // Log directory structure of stdlibDir for debugging
             Log.i(TAG, "Checking extracted stdlibDir: ${stdlibDir.absolutePath}")
             val stdlibFiles = stdlibDir.list()
@@ -136,7 +136,7 @@ object PythonStdlibExtractor {
             return null
         }
     }
-    
+
     /**
      * Copy the ABI-specific native dependencies bundled as assets into
      * $PYTHONHOME/lib. These keep their versioned file names on purpose:
@@ -186,7 +186,7 @@ object PythonStdlibExtractor {
             Log.w(TAG, "Failed to write pip.conf: ${e.message}")
         }
     }
-    
+
     /**
      * Clean up extracted Python directory
      */
@@ -197,7 +197,7 @@ object PythonStdlibExtractor {
             Log.i(TAG, "Cleaned up Python stdlib directory")
         }
     }
-    
+
     /**
      * Robust recursive asset copy
      */
@@ -207,28 +207,28 @@ object PythonStdlibExtractor {
         } catch (e: Exception) {
             null
         }
-        
+
         // If list() returns entries, it's a directory
         if (!assets.isNullOrEmpty()) {
             if (!destFile.exists()) {
                 destFile.mkdirs()
             }
-            
+
             val abi = android.os.Build.SUPPORTED_ABIS[0]
             val currentArch = getArch(abi)
-            
+
             for (asset in assets) {
                 // Filter architecture-specific files
                 if (isWrongArchitecture(asset, currentArch)) {
                     continue
                 }
-                
+
                 // Skip __pycache__
                 if (asset == "__pycache__") continue
-                
+
                 // Map the destination name
                 val mappedName = mapAssetName(asset)
-                
+
                 // Recurse
                 copyAssets(context, "$assetPath/$asset", File(destFile, mappedName))
             }
@@ -254,9 +254,9 @@ object PythonStdlibExtractor {
 
     private fun isWrongArchitecture(asset: String, currentArch: String): Boolean {
         // Only filter if it looks like an architecture-specific file/directory
-        if (asset.contains("aarch64") || asset.contains("x86_64") || 
+        if (asset.contains("aarch64") || asset.contains("x86_64") ||
             asset.contains("arm64") || asset.contains("x86")) {
-             return !asset.contains(currentArch)
+            return !asset.contains(currentArch)
         }
         return false
     }

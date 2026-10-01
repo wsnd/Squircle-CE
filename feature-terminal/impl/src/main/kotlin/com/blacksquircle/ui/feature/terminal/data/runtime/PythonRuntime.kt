@@ -25,30 +25,30 @@ import java.io.File
  * Python runtime that launches embedded CPython 3.14 interpreter
  */
 internal class PythonRuntime(private val context: Context) : TerminalRuntime {
-    
+
     init {
         // Ensure python command is set up on initialization
         initializePythonCommand()
     }
-    
+
     override val name: String = "Python 3.14"
     override val type: RuntimeType = RuntimeType.PYTHON
-    
+
     override val shellPath: String
         get() = "/system/bin/sh"
-    
+
     override val homeDir: String
         get() = context.filesDir.absolutePath
     override val tmpDir: String
         get() = context.cacheDir.absolutePath
-    
+
     /**
      * Initialize python command - create wrapper script
      */
     private fun initializePythonCommand() {
         createPythonWrapper()
     }
-    
+
     /**
      * Create a wrapper script that uses am broadcast to execute Python
      */
@@ -57,15 +57,15 @@ internal class PythonRuntime(private val context: Context) : TerminalRuntime {
         if (!binDir.exists()) {
             binDir.mkdirs()
         }
-        
+
         val wrapperScript = File(binDir, "python.sh")
         // Always recreate to ensure latest version
         if (wrapperScript.exists()) {
             wrapperScript.delete()
         }
-        
+
         wrapperScript.writeText(
-                """#!/system/bin/sh
+            """#!/system/bin/sh
 # Python 3.14 Wrapper - Uses Android am broadcast to execute code
 
 if [ -z "${'$'}1" ]; then
@@ -126,11 +126,11 @@ echo "   3. Results will appear here in Terminal"
 echo ""
 echo "File validated: ${'$'}SCRIPT_PATH"
 echo "Status: Ready for execution via Run button"
-                """.trimIndent()
-            )
-            
-            wrapperScript.setReadable(true, false)
-            android.util.Log.d("PythonRuntime", "Created python.sh at: ${wrapperScript.absolutePath}")
+            """.trimIndent()
+        )
+
+        wrapperScript.setReadable(true, false)
+        android.util.Log.d("PythonRuntime", "Created python.sh at: ${wrapperScript.absolutePath}")
         return wrapperScript.absolutePath
     }
 }

@@ -34,9 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.blacksquircle.ui.core.contract.ContractResult
 import com.blacksquircle.ui.core.contract.PermissionResult
-import com.blacksquircle.ui.core.contract.rememberOpenFolderContract
 import com.blacksquircle.ui.core.contract.rememberStorageContract
 import com.blacksquircle.ui.core.effect.CleanupEffect
 import com.blacksquircle.ui.core.effect.ResultEffect
@@ -48,18 +46,18 @@ import com.blacksquircle.ui.ds.PreviewBackground
 import com.blacksquircle.ui.ds.SquircleTheme
 import com.blacksquircle.ui.ds.divider.VerticalDivider
 import com.blacksquircle.ui.ds.emptyview.EmptyView
-import com.blacksquircle.ui.feature.explorer.R
 import com.blacksquircle.ui.ds.layout.SquircleLayout
 import com.blacksquircle.ui.ds.layout.WindowSize
 import com.blacksquircle.ui.ds.progress.CircularProgress
 import com.blacksquircle.ui.ds.scaffold.ScaffoldSuite
+import com.blacksquircle.ui.feature.explorer.R
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceModel
+import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceType
 import com.blacksquircle.ui.feature.explorer.api.navigation.KEY_CREATE_FILE
 import com.blacksquircle.ui.feature.explorer.api.navigation.KEY_CREATE_FOLDER
 import com.blacksquircle.ui.feature.explorer.data.utils.openFileWith
 import com.blacksquircle.ui.feature.explorer.domain.model.ErrorAction
 import com.blacksquircle.ui.feature.explorer.domain.model.SortMode
-import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceModel
-import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceType
 import com.blacksquircle.ui.feature.explorer.internal.ExplorerComponent
 import com.blacksquircle.ui.feature.explorer.ui.explorer.compose.ErrorStatus
 import com.blacksquircle.ui.feature.explorer.ui.explorer.compose.ExplorerActionBar
@@ -74,6 +72,7 @@ import com.blacksquircle.ui.ds.R as UiR
 
 internal const val KEY_SERVER_AUTHENTICATE = "KEY_SERVER_AUTHENTICATE"
 internal const val KEY_COMPRESS_FILE = "KEY_COMPRESS_FILE"
+
 // Use public constants from API layer: KEY_CREATE_FILE, KEY_CREATE_FOLDER
 internal const val KEY_CLONE_REPO = "KEY_CLONE_REPO"
 internal const val KEY_RENAME_FILE = "KEY_RENAME_FILE"

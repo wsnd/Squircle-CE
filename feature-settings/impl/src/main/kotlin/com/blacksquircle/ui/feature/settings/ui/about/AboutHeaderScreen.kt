@@ -47,7 +47,6 @@ import com.blacksquircle.ui.feature.settings.data.applicationName
 import com.blacksquircle.ui.feature.settings.data.versionCode
 import com.blacksquircle.ui.feature.settings.data.versionName
 import com.blacksquircle.ui.feature.settings.internal.SettingsComponent
-import com.blacksquircle.ui.navigation.api.Navigator
 import com.blacksquircle.ui.ds.R as UiR
 
 private const val PRIVACY_POLICY_URL =

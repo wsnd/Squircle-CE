@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+import org.gradle.api.GradleException
 import java.io.File
 import java.net.URI
-import org.gradle.api.GradleException
 
 plugins {
     id("com.blacksquircle.feature")

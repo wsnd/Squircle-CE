@@ -22,7 +22,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalConfiguration
 
 enum class WindowSize {
-    Compact, Medium, Expanded
+    Compact,
+    Medium,
+    Expanded
 }
 
 @Composable

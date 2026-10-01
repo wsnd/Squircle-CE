@@ -26,15 +26,14 @@ import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorCommand
 import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorController
 import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorSettings
 import com.blacksquircle.ui.feature.editor.ui.editor.view.*
+import com.blacksquircle.ui.feature.shortcuts.api.extensions.forAction
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.event.KeyBindingEvent
+import io.github.rosemoe.sora.event.SelectionChangeEvent
 import io.github.rosemoe.sora.text.Content
 import io.github.rosemoe.sora.util.regex.RegexBackrefGrammar
 import io.github.rosemoe.sora.widget.EditorSearcher.SearchOptions
 import io.github.rosemoe.sora.widget.subscribeAlways
-import com.blacksquircle.ui.feature.shortcuts.api.extensions.forAction
-
-import io.github.rosemoe.sora.event.SelectionChangeEvent
 
 @Composable
 internal fun CodeEditor(
@@ -48,7 +47,7 @@ internal fun CodeEditor(
     onShortcutPressed: (Boolean, Boolean, Boolean, Int) -> Unit = { _, _, _, _ -> },
 ) {
     val context = LocalContext.current
-    
+
     // Remember the LATEST callbacks to avoid stale closures in listeners
     val currentOnContentChanged by rememberUpdatedState(onContentChanged)
     val currentOnCursorChanged by rememberUpdatedState(onCursorChanged)
@@ -77,7 +76,7 @@ internal fun CodeEditor(
                     val ctrl = event.isCtrlPressed
                     val shift = (event.metaState and KeyEvent.META_SHIFT_ON) != 0
                     val alt = (event.metaState and KeyEvent.META_ALT_ON) != 0
-                    
+
                     // ONLY intercept if a shortcut is actually matched
                     val shortcut = currentSettings.keybindings.forAction(ctrl, shift, alt, event.keyCode)
                     if (shortcut != null) {
@@ -101,7 +100,7 @@ internal fun CodeEditor(
         factory = { view },
         update = { editor ->
             val settingsChanged = lastSettingsRef !== settings
-            
+
             // 1. Update settings ONLY when they actually changed (Identity check)
             if (settingsChanged) {
                 editor.setTextSize(settings.fontSize)
@@ -112,20 +111,20 @@ internal fun CodeEditor(
                 editor.isHighlightCurrentLine = settings.highlightCurrentLine
                 editor.isHighlightBracketPair = settings.highlightMatchingDelimiters
                 editor.isBlockLineEnabled = settings.highlightCodeBlocks
-                
+
                 // Guard isEditable as it restarts IME
                 if (editor.isEditable != !settings.readOnly) {
                     editor.isEditable = !settings.readOnly
                 }
-                
+
                 editor.tabWidth = settings.tabWidth
                 editor.typefaceText = settings.fontType
                 editor.typefaceLineNumber = settings.fontType
-                
-                // CRITICAL FIX: Set to false to prevent Android from blocking Enter/Shift keys 
+
+                // CRITICAL FIX: Set to false to prevent Android from blocking Enter/Shift keys
                 // when an external keyboard is connected.
-                editor.isDisableSoftKbdIfHardKbdAvailable = false 
-                
+                editor.isDisableSoftKbdIfHardKbdAvailable = false
+
                 editor.setShowInvisibleChars(settings.showInvisibleChars)
             }
 
@@ -142,7 +141,7 @@ internal fun CodeEditor(
                 editor.setEditorLanguage(editorLanguage)
                 lastLanguageName = language
             }
-            
+
             if (settingsChanged) {
                 lastSettingsRef = settings
             }
@@ -155,7 +154,7 @@ internal fun CodeEditor(
                 editor.scroller.abortAnimation()
                 lastContentRef = content
             }
-            
+
             if (!editor.isFocused) {
                 editor.requestFocus()
             }

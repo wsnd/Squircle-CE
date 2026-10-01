@@ -57,7 +57,7 @@ internal class SessionManagerImpl(
 
     override fun createSession(runtime: TerminalRuntime, args: ShellArgs?): String {
         Timber.d("createSession called: ${runtime.name}")
-        
+
         val sessionId = UUID.randomUUID().toString()
         val commands = MutableSharedFlow<TerminalCommand>(extraBufferCapacity = 64)
         val client = TerminalSessionClientImpl(
@@ -65,7 +65,7 @@ internal class SessionManagerImpl(
             onCopy = { text -> commands.tryEmit(TerminalCommand.Copy(text)) },
             onPaste = { commands.tryEmit(TerminalCommand.Paste) }
         )
-        
+
         setupBinDirectory()
 
         if (runtime.type == RuntimeType.PYTHON || args?.isPythonRepl == true) {
@@ -74,7 +74,7 @@ internal class SessionManagerImpl(
 
         val environment = HashMap<String, String>()
         setupCommonEnvironment(environment, runtime)
-        
+
         val shellPath = "/system/bin/sh"
         val shellArgs = arrayOf("-i")
 
@@ -86,7 +86,7 @@ internal class SessionManagerImpl(
             TerminalEmulator.DEFAULT_TERMINAL_TRANSCRIPT_ROWS,
             client
         )
-        
+
         sessions[sessionId] = SessionModel(
             id = sessionId,
             name = runtime.name,
@@ -94,7 +94,7 @@ internal class SessionManagerImpl(
             session = terminalSession,
             commands = commands.asSharedFlow(),
         )
-        
+
         return sessionId
     }
 
@@ -261,7 +261,7 @@ internal class SessionManagerImpl(
             counter.set(0)
         }
     }
-    
+
     private fun createPythonReplSession(
         sessionId: String,
         runtime: TerminalRuntime,
@@ -270,12 +270,12 @@ internal class SessionManagerImpl(
         args: ShellArgs?
     ): String {
         Timber.d("Creating Python REPL session")
-        
+
         val pythonPath = PythonStdlibExtractor.extractIfNeeded(context)
         val nativeLibDir = context.applicationInfo.nativeLibraryDir
         val binDir = File(context.filesDir, "bin")
         val initScript = File(binDir, "init.sh")
-        
+
         try {
             val dollarSign = "\$"
             val initContent = """
@@ -296,7 +296,7 @@ internal class SessionManagerImpl(
                     python -m pip "$dollarSign@" --extra-index-url https://anshdadwal.is-a.dev/p4a-wheels/p4a/
                 }
                 
-                export PS1='${dollarSign}{PWD##*/} ${dollarSign}'
+                export PS1='$dollarSign{PWD##*/} $dollarSign'
                 
                 # EXECUTE INJECTED COMMAND
                 if [ -n "$dollarSign{STARTUP_COMMAND}" ]; then
@@ -310,15 +310,15 @@ internal class SessionManagerImpl(
         } catch (e: Exception) {
             Timber.e(e, "Failed to write init script")
         }
-        
+
         val environment = HashMap<String, String>()
         setupCommonEnvironment(environment, runtime)
-        
+
         val sitePackages = "$pythonPath/lib/python3.14/site-packages"
         environment["PYTHONHOME"] = pythonPath ?: ""
         environment["PYTHONPATH"] = "$pythonPath/lib/python3.14:$pythonPath/lib/python3.14/lib-dynload:$sitePackages"
         environment["PIP_CONFIG_DIR"] = pythonPath ?: ""
-        
+
         // CRITICAL: Include system library paths to ensure libc and other system libs are found.
         // $pythonPath/lib holds the version-suffixed native dependencies unpacked
         // from assets (AGP drops them from jniLibs because they are not *.so).
@@ -327,12 +327,12 @@ internal class SessionManagerImpl(
 
         environment["PYTHONUNBUFFERED"] = "1"
         environment["ENV"] = initScript.absolutePath
-        
+
         val command = args?.command
         if (command != null) {
             environment["STARTUP_COMMAND"] = command
         }
-        
+
         val shellPath = "/system/bin/sh"
         val shellArgs = arrayOf("-i")
 
@@ -344,7 +344,7 @@ internal class SessionManagerImpl(
             TerminalEmulator.DEFAULT_TERMINAL_TRANSCRIPT_ROWS,
             client
         )
-        
+
         sessions[sessionId] = SessionModel(
             id = sessionId,
             name = runtime.name,
@@ -352,7 +352,7 @@ internal class SessionManagerImpl(
             session = terminalSession,
             commands = commands.asSharedFlow(),
         )
-        
+
         return sessionId
     }
 

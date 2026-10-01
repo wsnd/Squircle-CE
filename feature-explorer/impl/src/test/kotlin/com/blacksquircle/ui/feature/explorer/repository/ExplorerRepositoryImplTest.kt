@@ -22,6 +22,7 @@ import com.blacksquircle.ui.core.extensions.PermissionException
 import com.blacksquircle.ui.core.extensions.isStorageAccessGranted
 import com.blacksquircle.ui.core.settings.SettingsManager
 import com.blacksquircle.ui.feature.explorer.api.factory.FilesystemFactory
+import com.blacksquircle.ui.feature.explorer.api.model.TaskType
 import com.blacksquircle.ui.feature.explorer.createFile
 import com.blacksquircle.ui.feature.explorer.createFolder
 import com.blacksquircle.ui.feature.explorer.data.manager.TaskAction
@@ -31,7 +32,6 @@ import com.blacksquircle.ui.feature.explorer.data.workspace.DefaultWorkspaceSour
 import com.blacksquircle.ui.feature.explorer.data.workspace.ServerWorkspaceSource
 import com.blacksquircle.ui.feature.explorer.data.workspace.UserWorkspaceSource
 import com.blacksquircle.ui.feature.explorer.defaultWorkspaces
-import com.blacksquircle.ui.feature.explorer.api.model.TaskType
 import com.blacksquircle.ui.feature.git.api.interactor.GitInteractor
 import com.blacksquircle.ui.filesystem.base.Filesystem
 import com.blacksquircle.ui.filesystem.local.LocalFilesystem

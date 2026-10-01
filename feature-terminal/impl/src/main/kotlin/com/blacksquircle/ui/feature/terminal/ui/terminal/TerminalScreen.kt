@@ -43,14 +43,11 @@ import com.blacksquircle.ui.core.event.EventBus
 import com.blacksquircle.ui.core.extensions.copyText
 import com.blacksquircle.ui.core.extensions.daggerViewModel
 import com.blacksquircle.ui.core.extensions.primaryClipText
-import com.blacksquircle.ui.core.extensions.showToast
-import com.blacksquircle.ui.core.mvi.ViewEvent
 import com.blacksquircle.ui.ds.PreviewBackground
 import com.blacksquircle.ui.ds.SquircleTheme
 import com.blacksquircle.ui.ds.button.IconButton
 import com.blacksquircle.ui.ds.button.IconButtonSizeDefaults
 import com.blacksquircle.ui.ds.button.IconButtonStyleDefaults
-import com.blacksquircle.ui.ds.divider.HorizontalDivider
 import com.blacksquircle.ui.ds.scaffold.ScaffoldSuite
 import com.blacksquircle.ui.ds.tabs.TabItem
 import com.blacksquircle.ui.ds.tabs.TabLayout
@@ -278,7 +275,11 @@ private fun TerminalScreen(
                     ) {
                         items(items = viewState.sessions, key = SessionModel::id) { sessionModel ->
                             TabItem(
-                                title = if (sessionModel.ordinal > 0) sessionModel.name + " (${sessionModel.ordinal})" else sessionModel.name,
+                                title = if (sessionModel.ordinal > 0) {
+                                    sessionModel.name + " (${sessionModel.ordinal})"
+                                } else {
+                                    sessionModel.name
+                                },
                                 selected = sessionModel.id == currentSession.id,
                                 height = 28.dp,
                                 textStyle = SquircleTheme.typography.text12Regular.copy(

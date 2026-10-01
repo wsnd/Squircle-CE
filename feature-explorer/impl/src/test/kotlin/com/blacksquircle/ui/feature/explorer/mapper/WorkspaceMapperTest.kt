@@ -17,9 +17,9 @@
 package com.blacksquircle.ui.feature.explorer.mapper
 
 import com.blacksquircle.ui.core.database.entity.workspace.WorkspaceEntity
-import com.blacksquircle.ui.feature.explorer.data.mapper.WorkspaceMapper
 import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceModel
 import com.blacksquircle.ui.feature.explorer.api.model.WorkspaceType
+import com.blacksquircle.ui.feature.explorer.data.mapper.WorkspaceMapper
 import com.blacksquircle.ui.filesystem.base.model.AuthMethod
 import com.blacksquircle.ui.filesystem.base.model.FileModel
 import com.blacksquircle.ui.filesystem.base.model.ServerConfig

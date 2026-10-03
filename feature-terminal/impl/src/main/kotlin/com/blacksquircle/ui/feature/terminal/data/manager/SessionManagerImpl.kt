@@ -149,13 +149,18 @@ internal class SessionManagerImpl(
 
         shims.forEach { shim ->
             val shimFile = File(binDir, shim)
-            if (!shimFile.exists()) {
-                try {
+            try {
+                if (!shimFile.exists()) {
                     shimFile.writeText(shimContent)
-                    shimFile.setExecutable(true)
-                } catch (e: Exception) {
-                    Timber.e(e, "Failed to create shim")
                 }
+                // Repair shims written before the bit was set: without it a
+                // build script gets a bare PermissionError from subprocess
+                // instead of the explanation this shim exists to print.
+                if (!shimFile.canExecute()) {
+                    shimFile.setExecutable(true)
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to create shim")
             }
         }
     }
@@ -220,16 +225,26 @@ internal class SessionManagerImpl(
         val pythonHome = File(context.filesDir, "python")
         if (!pythonHome.exists()) return
 
+        // This session does not extract the stdlib (see above), so pip.conf
+        // has to be rewritten here, or an app update that changes it keeps
+        // serving the outdated copy written by a previous version.
+        PythonStdlibExtractor.refreshPipConfig(context)
+
         val pythonHomePath = pythonHome.absolutePath
         val stdlib = "$pythonHomePath/lib/python3.14"
         val sitePackages = "$stdlib/site-packages"
 
         env["PYTHONHOME"] = pythonHomePath
         env["PYTHONPATH"] = "$stdlib:$stdlib/lib-dynload:$sitePackages"
-        // pip reads its config from $PIP_CONFIG_DIR/pip.conf before looking at
-        // sys.prefix — set explicitly so index configuration applies no matter
-        // how the interpreter is launched.
-        env["PIP_CONFIG_DIR"] = pythonHomePath
+        // pip only knows PIP_CONFIG_FILE; without it the configuration is
+        // found through sys.prefix, which is not where the interpreter ends
+        // up when a script launches libpython_exe.so directly.
+        env["PIP_CONFIG_FILE"] = "$pythonHomePath/pip.conf"
+        // Same rule as in pip.conf, and for the same reason: never build from
+        // source on device. A variable survives the cases where a script
+        // spawns pip in a way that hides the config file, and pip merges it
+        // with the file rather than picking one.
+        env["PIP_ONLY_BINARY"] = ":all:"
         // pip installs console scripts (f2py, numpy-config, ...) into
         // $PYTHONHOME/bin — expose them and silence pip's script-location warning.
         val currentPath = env[ENV_PATH].orEmpty()
@@ -317,7 +332,8 @@ internal class SessionManagerImpl(
         val sitePackages = "$pythonPath/lib/python3.14/site-packages"
         environment["PYTHONHOME"] = pythonPath ?: ""
         environment["PYTHONPATH"] = "$pythonPath/lib/python3.14:$pythonPath/lib/python3.14/lib-dynload:$sitePackages"
-        environment["PIP_CONFIG_DIR"] = pythonPath ?: ""
+        environment["PIP_CONFIG_FILE"] = "$pythonPath/pip.conf"
+        environment["PIP_ONLY_BINARY"] = ":all:"
 
         // CRITICAL: Include system library paths to ensure libc and other system libs are found.
         // $pythonPath/lib holds the version-suffixed native dependencies unpacked

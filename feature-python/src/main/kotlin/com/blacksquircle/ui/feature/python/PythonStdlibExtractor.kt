@@ -51,12 +51,26 @@ object PythonStdlibExtractor {
      * community indexes with precompiled Android wheels (PEP 738 tags like
      * android_24_arm64_v8a) so that heavy packages such as numpy install
      * instantly instead of failing on missing manylinux wheels.
+     *
+     * `only-binary` is the reason those indexes are actually used: pip merges
+     * every index into one candidate list and takes the highest version, and
+     * the newest numpy on PyPI ships only an sdist, because its manylinux
+     * wheels do not match the Android platform tags. Without the restriction
+     * pip picks that sdist over the older Android wheel and builds it here,
+     * where there is no toolchain, which installs something broken. Binary
+     * only excludes the sdist, so pip falls back to the wheel that runs. The
+     * trade-off is a possibly older version than PyPI offers.
+     *
+     * Packages that publish no wheel at all now fail with "no matching
+     * distribution" instead of a broken build. Override per invocation with
+     * `--only-binary=:none:`, which the command line wins over this file.
      */
     private val PIP_CONFIG = """
         [global]
         extra-index-url =
             https://nsyhykui.github.io/python_wheels_for_termux/simple/
             https://termux-user-repository.github.io/pypi/
+        only-binary = :all:
     """.trimIndent() + "\n"
 
     /**
@@ -173,6 +187,22 @@ object PythonStdlibExtractor {
             }
         }
         Log.i(TAG, "Extracted ${names.size} native dependencies into ${libDir.absolutePath}")
+    }
+
+    /**
+     * Rewrite pip.conf for an already extracted runtime.
+     *
+     * Shell sessions never go through [extractIfNeeded] — extracting ~260MB
+     * would block terminal startup — so without this an app update that
+     * changes [PIP_CONFIG] would keep serving the stale file until the next
+     * extraction, which is exactly what happens on a device that installed
+     * the runtime under an older version.
+     */
+    fun refreshPipConfig(context: Context) {
+        val pythonDir = File(context.filesDir, PYTHON_DIR_NAME)
+        if (pythonDir.exists()) {
+            writePipConfig(pythonDir)
+        }
     }
 
     /**

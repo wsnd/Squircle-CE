@@ -155,7 +155,11 @@ internal fun CodeEditor(
                 lastContentRef = content
             }
 
-            if (!editor.isFocused) {
+            // Claim focus only when nothing else in the window holds it. Doing it
+            // on every recomposition pulls focus back from the sidebar's Compose
+            // text fields, and every handover restarts the IME — which is what
+            // makes the keyboard rebuild itself and flash black.
+            if (!editor.isFocused && editor.rootView?.findFocus() == null) {
                 editor.requestFocus()
             }
         },

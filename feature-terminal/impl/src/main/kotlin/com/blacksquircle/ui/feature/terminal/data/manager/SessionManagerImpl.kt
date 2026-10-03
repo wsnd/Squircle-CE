@@ -307,8 +307,11 @@ internal class SessionManagerImpl(
                     python -m ensurepip --default-pip > /dev/null 2>&1
                 fi
                 
+                # The indexes and the binary-only rule come from pip.conf now,
+                # so this only has to pick the interpreter the script runs on
+                # instead of whatever pip is first in PATH.
                 pip() {
-                    python -m pip "$dollarSign@" --extra-index-url https://anshdadwal.is-a.dev/p4a-wheels/p4a/
+                    python -m pip "$dollarSign@"
                 }
                 
                 export PS1='$dollarSign{PWD##*/} $dollarSign'

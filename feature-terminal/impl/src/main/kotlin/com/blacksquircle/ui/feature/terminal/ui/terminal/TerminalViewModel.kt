@@ -33,6 +33,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -77,7 +78,7 @@ internal class TerminalViewModel @AssistedInject constructor(
             val currentSession = sessions.find { it.id == selectedSession }
             if (currentSession != null && !isInitializing) {
                 Timber.d("TERMINAL_EXEC: Session exists and ready, writing directly")
-                currentSession.session.write("$command\n")
+                writeCommand(currentSession.id, command)
             } else {
                 Timber.d("TERMINAL_EXEC: No session ready, queuing for new session...")
                 // Capture command for the session that's about to be created
@@ -87,6 +88,29 @@ internal class TerminalViewModel @AssistedInject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Type [command] into [sessionId] once its shell is actually running.
+     *
+     * A session exists as soon as it is created, but its process only starts
+     * when the terminal view attaches and sizes it, which happens a frame
+     * later — and creating the first session also extracts the stdlib, so
+     * that can be seconds. TerminalSession.write() is a no-op until then, so
+     * a command sent right after the panel opened was silently dropped and
+     * the terminal came up with nothing to run.
+     */
+    private suspend fun writeCommand(sessionId: String, command: String) {
+        val session = sessions.find { it.id == sessionId }?.session ?: return
+        repeat(SESSION_STARTUP_ATTEMPTS) {
+            if (session.isRunning) {
+                Timber.d("TERMINAL_EXEC: Writing command -> $command")
+                session.write("$command\n")
+                return
+            }
+            delay(SESSION_STARTUP_POLL_MS)
+        }
+        Timber.w("TERMINAL_EXEC: Dropped command, session never started -> $command")
     }
 
     fun onSessionClicked(sessionModel: SessionModel) {
@@ -103,9 +127,11 @@ internal class TerminalViewModel @AssistedInject constructor(
         viewModelScope.launch {
             try {
                 createRuntime { runtime ->
-                    val args = internalPendingCommand ?: pendingCommand
-                    selectedSession = sessionManager.createSession(runtime, args)
+                    val queued = internalPendingCommand
+                    internalPendingCommand = null
+                    val sessionId = sessionManager.createSession(runtime, queued ?: pendingCommand)
                     sessions = sessionManager.sessions()
+                    selectedSession = sessionId
 
                     _viewState.update {
                         it.copy(
@@ -113,7 +139,7 @@ internal class TerminalViewModel @AssistedInject constructor(
                             selectedSession = selectedSession,
                         )
                     }
-                    internalPendingCommand = null
+                    runCommandQueuedWhileCreating(sessionId)
 
                     viewModelScope.launch {
                         _viewEvent.send(TerminalViewEvent.ScrollToEnd)
@@ -156,6 +182,22 @@ internal class TerminalViewModel @AssistedInject constructor(
                     sessions = sessions,
                     selectedSession = selectedSession,
                 )
+            }
+        }
+    }
+
+    /**
+     * Creating a session blocks on the runtime — the first one also extracts
+     * the stdlib — so a command can easily arrive in the middle of it. That
+     * command missed the arguments handed to createSession, and used to be
+     * discarded when the queue was cleared afterwards.
+     */
+    private fun runCommandQueuedWhileCreating(sessionId: String) {
+        val lateCommand = internalPendingCommand?.command
+        internalPendingCommand = null
+        if (lateCommand != null) {
+            viewModelScope.launch {
+                writeCommand(sessionId, lateCommand)
             }
         }
     }
@@ -206,8 +248,9 @@ internal class TerminalViewModel @AssistedInject constructor(
 
                 if (sessions.isEmpty() || pendingCommand != null) {
                     createRuntime { runtime ->
-                        val args = internalPendingCommand ?: pendingCommand
-                        val sessionId = sessionManager.createSession(runtime, args)
+                        val queued = internalPendingCommand
+                        internalPendingCommand = null
+                        val sessionId = sessionManager.createSession(runtime, queued ?: pendingCommand)
 
                         sessions = sessionManager.sessions()
                         selectedSession = sessionId
@@ -218,7 +261,7 @@ internal class TerminalViewModel @AssistedInject constructor(
                                 selectedSession = selectedSession,
                             )
                         }
-                        internalPendingCommand = null
+                        runCommandQueuedWhileCreating(sessionId)
 
                         viewModelScope.launch {
                             _viewEvent.send(TerminalViewEvent.ScrollToEnd)
@@ -259,5 +302,12 @@ internal class TerminalViewModel @AssistedInject constructor(
     @AssistedFactory
     interface Factory {
         fun create(@Assisted pendingCommand: ShellArgs?): TerminalViewModel
+    }
+
+    companion object {
+
+        /** How long to wait for a session's shell to start before giving up. */
+        private const val SESSION_STARTUP_ATTEMPTS = 200
+        private const val SESSION_STARTUP_POLL_MS = 100L
     }
 }

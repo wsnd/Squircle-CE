@@ -48,6 +48,7 @@ import com.blacksquircle.ui.ds.SquircleTheme
 import com.blacksquircle.ui.ds.button.IconButton
 import com.blacksquircle.ui.ds.button.IconButtonSizeDefaults
 import com.blacksquircle.ui.ds.button.IconButtonStyleDefaults
+import com.blacksquircle.ui.ds.progress.CircularProgress
 import com.blacksquircle.ui.ds.scaffold.ScaffoldSuite
 import com.blacksquircle.ui.ds.tabs.TabItem
 import com.blacksquircle.ui.ds.tabs.TabLayout
@@ -62,10 +63,15 @@ import com.blacksquircle.ui.feature.terminal.ui.terminal.extrakeys.ExtraKeysInfo
 import com.blacksquircle.ui.feature.terminal.ui.terminal.extrakeys.ExtraKeysView
 import com.blacksquircle.ui.feature.terminal.ui.terminal.model.TerminalCommand
 import com.blacksquircle.ui.feature.terminal.ui.terminal.view.TerminalViewClientImpl
+import com.termux.terminal.TerminalSession
 import com.termux.view.TerminalView
-import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.delay
 import timber.log.Timber
 import com.blacksquircle.ui.ds.R as UiR
+
+/** How long to wait for a session's shell to start before giving up on it. */
+private const val SESSION_STARTUP_ATTEMPTS = 200
+private const val SESSION_STARTUP_POLL_MS = 100L
 
 /** Height of Termux's single row multiplied by 2 */
 private val EXTRA_KEYS_HEIGHT = 75.dp
@@ -189,10 +195,15 @@ private fun TerminalScreen(
     }
 
     // SHARED LISTENER: Works for both Panel and Screen
+    //
+    // Readiness is published by the effect that attaches the session, not
+    // here: it has to mean "a shell is running and this view is showing it",
+    // because the editor waits for it before sending a command. Announcing it
+    // as soon as this composable existed let a command be typed into a
+    // session that had not started yet, so it ran without ever being shown.
     LaunchedEffect(Unit) {
         try {
             EventBus.events
-                .onStart { EventBus.setTerminalReady(true) }
                 .collect { event ->
                     Timber.d("TERMINAL_BUS: Received event: $event")
                     if (event is AppEvent.ExecutePythonCommand) {
@@ -312,16 +323,34 @@ private fun TerminalScreen(
                         terminalView.post {
                             terminalView.requestFocus()
                         }
-                        currentSession.commands.collect { command ->
-                            when (command) {
-                                is TerminalCommand.Update -> terminalView.onScreenUpdated()
-                                is TerminalCommand.Copy -> context.copyText(command.text)
-                                is TerminalCommand.Paste -> terminalView.mEmulator?.paste(context.primaryClipText())
+                        try {
+                            val started = awaitShell(currentSession.session)
+                            EventBus.setTerminalReady(started)
+                            if (started) {
+                                terminalView.onScreenUpdated()
                             }
+                            currentSession.commands.collect { command ->
+                                when (command) {
+                                    is TerminalCommand.Update -> terminalView.onScreenUpdated()
+                                    is TerminalCommand.Copy -> context.copyText(command.text)
+                                    is TerminalCommand.Paste -> terminalView.mEmulator?.paste(context.primaryClipText())
+                                }
+                            }
+                        } finally {
+                            EventBus.setTerminalReady(false)
                         }
                     }
                 } else {
-                    Box(modifier = Modifier.fillMaxSize().background(SquircleTheme.colors.colorBackgroundPrimary))
+                    // A session is on its way; the first one also extracts the
+                    // stdlib, and an empty panel until then looks broken.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(SquircleTheme.colors.colorBackgroundPrimary),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgress()
+                    }
                 }
             }
         }
@@ -366,4 +395,20 @@ private fun TerminalScreenPreview() {
             }
         )
     }
+}
+
+/**
+ * Wait until the shell of [session] is running.
+ *
+ * Attaching a session does not start it: the process is spawned once the view
+ * knows its size, a frame or two later. Anything typed before that is dropped,
+ * and anything the editor sends is therefore held back until here.
+ */
+private suspend fun awaitShell(session: TerminalSession): Boolean {
+    repeat(SESSION_STARTUP_ATTEMPTS) {
+        if (session.isRunning) return true
+        delay(SESSION_STARTUP_POLL_MS)
+    }
+    Timber.w("Terminal session did not start")
+    return false
 }

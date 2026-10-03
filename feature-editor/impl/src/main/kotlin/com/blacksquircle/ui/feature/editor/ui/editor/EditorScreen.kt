@@ -115,6 +115,9 @@ internal fun EditorScreen(
     // Git panel state
     var gitPanelVisible by rememberSaveable { mutableStateOf(false) }
 
+    // Python packages panel state
+    var pythonPanelVisible by rememberSaveable { mutableStateOf(false) }
+
     EditorScreen(
         viewState = viewState,
         drawerState = drawerState,
@@ -126,6 +129,7 @@ internal fun EditorScreen(
         bottomPanelHeight = bottomPanelHeight.dp,
         searchPanelVisible = searchPanelVisible,
         gitPanelVisible = gitPanelVisible,
+        pythonPanelVisible = pythonPanelVisible,
         onSidePaneWidthChanged = { sidePaneWidth = it.value },
         onBottomPanelHeightChanged = { bottomPanelHeight = it.value },
         onCursorChanged = { l, c ->
@@ -134,13 +138,17 @@ internal fun EditorScreen(
         },
         onDrawerClicked = {
             scope.launch {
-                // Close search and git panels when opening file explorer
+                // Close search, git and python panels when opening file explorer
                 if (searchPanelVisible) {
                     searchPanelVisible = false
                 }
                 if (gitPanelVisible) {
                     gitPanelVisible = false
                     viewModel.onGitPanelClosed()
+                }
+                if (pythonPanelVisible) {
+                    pythonPanelVisible = false
+                    viewModel.onPythonPanelClosed()
                 }
                 // Toggle drawer state
                 if (drawerState.isOpen) drawerState.close() else drawerState.open()
@@ -156,6 +164,10 @@ internal fun EditorScreen(
                     gitPanelVisible = false
                     viewModel.onGitPanelClosed()
                 }
+                if (pythonPanelVisible) {
+                    pythonPanelVisible = false
+                    viewModel.onPythonPanelClosed()
+                }
                 // Toggle search panel
                 searchPanelVisible = !searchPanelVisible
             }
@@ -169,9 +181,38 @@ internal fun EditorScreen(
                 if (searchPanelVisible) {
                     searchPanelVisible = false
                 }
+                if (pythonPanelVisible) {
+                    pythonPanelVisible = false
+                    viewModel.onPythonPanelClosed()
+                }
                 // Toggle git panel
                 gitPanelVisible = !gitPanelVisible
                 viewModel.onGitPanelClicked()
+            }
+        },
+        onPythonClicked = {
+            scope.launch {
+                // Close search and git when opening the packages panel
+                if (searchPanelVisible) {
+                    searchPanelVisible = false
+                }
+                if (gitPanelVisible) {
+                    gitPanelVisible = false
+                    viewModel.onGitPanelClosed()
+                }
+                // Toggle python panel
+                pythonPanelVisible = !pythonPanelVisible
+                viewModel.onPythonPanelClicked()
+                // There is no rail on phones, so the panel lives in the drawer
+                // and has to be opened together with it. On tablets it takes
+                // the sidebar, where an open drawer would only cover it.
+                if (isTablet) {
+                    if (drawerState.isOpen) drawerState.close()
+                } else if (pythonPanelVisible) {
+                    drawerState.open()
+                } else {
+                    drawerState.close()
+                }
             }
         },
         onNewFileClicked = viewModel::onNewFileClicked,
@@ -254,6 +295,13 @@ internal fun EditorScreen(
         onGitPanelTabSelected = viewModel::onGitPanelTabSelected,
         onGitPanelHistoryCommitClicked = viewModel::onGitPanelHistoryCommitClicked,
         onGitPanelLoadMoreHistoryClicked = viewModel::onGitPanelLoadMoreHistoryClicked,
+        // Python packages panel callbacks
+        onPythonQueryChanged = viewModel::onPythonQueryChanged,
+        onPythonPackageClicked = viewModel::onPythonPackageClicked,
+        onPythonInstallClicked = { viewModel.onPythonInstallClicked(it, isTablet) },
+        onPythonUninstallClicked = { viewModel.onPythonUninstallClicked(it, isTablet) },
+        onPythonUpgradeClicked = { viewModel.onPythonUpgradeClicked(it, isTablet) },
+        onPythonRefreshClicked = viewModel::onPythonRefreshClicked,
     )
 
     val openFileContract = rememberOpenFileContract { result ->
@@ -310,9 +358,11 @@ private fun EditorScreen(
     tabsState: LazyListState,
     searchPanelVisible: Boolean = false,
     gitPanelVisible: Boolean = false,
+    pythonPanelVisible: Boolean = false,
     onDrawerClicked: () -> Unit = {},
     onSearchClicked: () -> Unit = {},
     onGitClicked: () -> Unit = {},
+    onPythonClicked: () -> Unit = {},
     onNewFileClicked: () -> Unit = {},
     onOpenFileClicked: () -> Unit = {},
     onOpenFolderClicked: () -> Unit = {},
@@ -391,6 +441,13 @@ private fun EditorScreen(
     onGitPanelTabSelected: (com.blacksquircle.ui.feature.git.api.model.GitPanelTab) -> Unit = {},
     onGitPanelHistoryCommitClicked: (com.blacksquircle.ui.feature.git.api.model.GitCommit) -> Unit = {},
     onGitPanelLoadMoreHistoryClicked: () -> Unit = {},
+    // Python packages panel callbacks
+    onPythonQueryChanged: (String) -> Unit = {},
+    onPythonPackageClicked: (com.blacksquircle.ui.feature.python.model.PythonPackage) -> Unit = {},
+    onPythonInstallClicked: (com.blacksquircle.ui.feature.python.model.PythonPackage) -> Unit = {},
+    onPythonUninstallClicked: (com.blacksquircle.ui.feature.python.model.PythonPackage) -> Unit = {},
+    onPythonUpgradeClicked: (com.blacksquircle.ui.feature.python.model.PythonPackage) -> Unit = {},
+    onPythonRefreshClicked: () -> Unit = {},
     line: Int = 1,
     column: Int = 1,
     sidePaneWidth: Dp = 300.dp,
@@ -433,11 +490,19 @@ private fun EditorScreen(
                     selected = gitPanelVisible,
                     onClick = onGitClicked,
                 )
+                NavigationRailItem(
+                    iconResId = UiR.drawable.ic_package,
+                    selected = pythonPanelVisible,
+                    onClick = onPythonClicked,
+                )
             }
             VerticalDivider()
         }
 
-        if (isTablet && (drawerState.isOpen || searchPanelVisible || gitPanelVisible)) {
+        if (isTablet && (
+                drawerState.isOpen || searchPanelVisible || gitPanelVisible || pythonPanelVisible
+            )
+        ) {
             Surface(
                 modifier = Modifier.width(sidePaneWidth).fillMaxHeight(),
                 shape = RectangleShape,
@@ -503,6 +568,19 @@ private fun EditorScreen(
                             modifier = Modifier.fillMaxSize()
                         )
                     }
+                    pythonPanelVisible -> {
+                        // Show the Python packages panel in the sidebar
+                        PythonPackagePanel(
+                            state = viewState.pythonPanelState,
+                            onQueryChanged = onPythonQueryChanged,
+                            onPackageClicked = onPythonPackageClicked,
+                            onInstallClicked = onPythonInstallClicked,
+                            onUninstallClicked = onPythonUninstallClicked,
+                            onUpgradeClicked = onPythonUpgradeClicked,
+                            onRefreshClicked = onPythonRefreshClicked,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                     else -> {
                         // Show file explorer
                         DrawerExplorer(onDrawerClicked)
@@ -547,6 +625,7 @@ private fun EditorScreen(
                         onCheckoutClicked = onCheckoutClicked,
                         onTerminalClicked = onTerminalClicked,
                         onGitPanelClicked = onGitClicked,
+                        onPythonPanelClicked = onPythonClicked,
                         onCloseFileClicked = onCloseFileClicked,
                         onCloseOthersClicked = {
                             viewState.currentDocument?.document?.let(onCloseOthersClicked)
@@ -610,6 +689,18 @@ private fun EditorScreen(
                                     onDiscardClicked = onGitPanelDiscardClicked,
                                     onCommitMessageChanged = onGitPanelCommitMessageChanged,
                                     onCommitClicked = onGitPanelCommitClicked,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            pythonPanelVisible -> {
+                                PythonPackagePanel(
+                                    state = viewState.pythonPanelState,
+                                    onQueryChanged = onPythonQueryChanged,
+                                    onPackageClicked = onPythonPackageClicked,
+                                    onInstallClicked = onPythonInstallClicked,
+                                    onUninstallClicked = onPythonUninstallClicked,
+                                    onUpgradeClicked = onPythonUpgradeClicked,
+                                    onRefreshClicked = onPythonRefreshClicked,
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }

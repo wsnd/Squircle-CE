@@ -22,6 +22,7 @@ import com.blacksquircle.ui.feature.editor.ui.editor.model.DocumentState
 import com.blacksquircle.ui.feature.editor.ui.editor.model.EditorSettings
 import com.blacksquircle.ui.feature.editor.ui.editor.model.GitPanelState
 import com.blacksquircle.ui.feature.editor.ui.editor.model.GlobalSearchState
+import com.blacksquircle.ui.feature.editor.ui.editor.model.PythonPanelState
 
 @Immutable
 internal data class EditorViewState(
@@ -33,6 +34,7 @@ internal data class EditorViewState(
     val bottomPanelVisible: Boolean = false,
     val globalSearchState: GlobalSearchState = GlobalSearchState(),
     val gitPanelState: GitPanelState = GitPanelState(),
+    val pythonPanelState: PythonPanelState = PythonPanelState(),
 ) : ViewState {
 
     val currentDocument: DocumentState?

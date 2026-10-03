@@ -110,4 +110,28 @@
     <string name="editor_global_search_error_unknown">Unknown error</string>
     <string name="editor_global_search_error_invalid_pattern">Invalid search pattern</string>
 
+    <string name="editor_menu_python_packages">Python Packages</string>
+    <string name="editor_python_panel_title">Python Packages</string>
+    <string name="editor_python_panel_search_hint">Search packages</string>
+    <string name="editor_python_panel_refresh">Refresh</string>
+    <string name="editor_python_panel_install">Install</string>
+    <string name="editor_python_panel_uninstall">Uninstall</string>
+    <string name="editor_python_panel_upgrade">Upgrade</string>
+    <string name="editor_python_panel_installed">Installed %1$s</string>
+    <string name="editor_python_panel_not_installed">Not installed</string>
+    <string name="editor_python_panel_group_installed">Installed</string>
+    <string name="editor_python_panel_group_available">Available</string>
+    <string name="editor_python_panel_empty">No packages to show</string>
+    <string name="editor_python_panel_error">Could not load the package list</string>
+    <string name="editor_python_panel_no_wheels">No published wheels</string>
+    <string name="editor_python_panel_no_compatible_wheel">No wheel for Python %1$s</string>
+    <string name="editor_python_panel_installing">Installing…</string>
+    <string name="editor_python_panel_upgrading">Upgrading…</string>
+    <string name="editor_python_panel_removing">Removing…</string>
+    <string name="editor_python_panel_toast_installed">Installed %1$s</string>
+    <string name="editor_python_panel_toast_removed">Removed %1$s</string>
+    <string name="editor_python_panel_toast_failed">Failed to install %1$s — see the terminal</string>
+    <string name="editor_python_panel_toast_remove_failed">Failed to remove %1$s — see the terminal</string>
+    <string name="editor_python_panel_toast_timeout">No result for %1$s — check the terminal</string>
+
 </resources>

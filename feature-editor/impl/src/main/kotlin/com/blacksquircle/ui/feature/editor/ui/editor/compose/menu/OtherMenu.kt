@@ -35,6 +35,7 @@ internal fun OtherMenu(
     onToolsClicked: () -> Unit = {},
     onGitClicked: () -> Unit = {},
     onTerminalClicked: () -> Unit = {},
+    onPythonPackagesClicked: () -> Unit = {},
 ) {
     PopupMenu(
         expanded = expanded,
@@ -65,6 +66,11 @@ internal fun OtherMenu(
             title = stringResource(R.string.editor_menu_terminal),
             iconResId = UiR.drawable.ic_console,
             onClick = onTerminalClicked,
+        )
+        PopupMenuItem(
+            title = stringResource(R.string.editor_menu_python_packages),
+            iconResId = UiR.drawable.ic_package,
+            onClick = onPythonPackagesClicked,
         )
     }
 }

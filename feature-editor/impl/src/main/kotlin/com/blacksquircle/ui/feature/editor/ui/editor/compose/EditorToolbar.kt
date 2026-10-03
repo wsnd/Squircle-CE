@@ -70,6 +70,7 @@ internal fun EditorToolbar(
     onCheckoutClicked: () -> Unit = {},
     onTerminalClicked: () -> Unit = {},
     onGitPanelClicked: () -> Unit = {},
+    onPythonPanelClicked: () -> Unit = {},
     onCloseFileClicked: () -> Unit = {},
     onCloseOthersClicked: () -> Unit = {},
     onCloseAllClicked: () -> Unit = {},
@@ -171,6 +172,7 @@ internal fun EditorToolbar(
                             menuType = null
                             onTerminalClicked()
                         },
+                        onPythonPackagesClicked = { menuType = null; onPythonPanelClicked() },
                     )
                     ToolsMenu(
                         expanded = menuType == MenuType.TOOLS,

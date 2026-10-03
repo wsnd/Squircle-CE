@@ -49,6 +49,9 @@ import com.blacksquircle.ui.feature.editor.ui.editor.model.ErrorAction
 import com.blacksquircle.ui.feature.editor.ui.editor.model.ErrorState
 import com.blacksquircle.ui.feature.editor.ui.editor.model.GitPanelState
 import com.blacksquircle.ui.feature.editor.ui.editor.model.GlobalSearchState
+import com.blacksquircle.ui.feature.editor.ui.editor.model.PythonPanelState
+import com.blacksquircle.ui.feature.editor.ui.editor.model.PythonPendingAction
+import com.blacksquircle.ui.feature.editor.ui.editor.model.PythonPendingTask
 import com.blacksquircle.ui.feature.editor.ui.editor.model.SearchState
 import com.blacksquircle.ui.feature.editor.ui.editor.view.selectionEnd
 import com.blacksquircle.ui.feature.editor.ui.editor.view.selectionStart
@@ -66,6 +69,9 @@ import com.blacksquircle.ui.feature.git.api.navigation.CommitRoute
 import com.blacksquircle.ui.feature.git.api.navigation.FetchRoute
 import com.blacksquircle.ui.feature.git.api.navigation.PullRoute
 import com.blacksquircle.ui.feature.git.api.navigation.PushRoute
+import com.blacksquircle.ui.feature.python.AndroidWheelRepository
+import com.blacksquircle.ui.feature.python.InstalledPackages
+import com.blacksquircle.ui.feature.python.model.PythonPackage
 import com.blacksquircle.ui.feature.settings.api.navigation.HeaderListRoute
 import com.blacksquircle.ui.feature.shortcuts.api.extensions.forAction
 import com.blacksquircle.ui.feature.shortcuts.api.interactor.ShortcutsInteractor
@@ -78,6 +84,7 @@ import com.blacksquircle.ui.navigation.api.Navigator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -2554,6 +2561,322 @@ internal class EditorViewModel @Inject constructor(
         tabWidth = settingsManager.tabWidth,
         keybindings = shortcutsInteractor.loadShortcuts(),
     )
+
+    // ==================== Python Packages Panel ====================
+
+    private var pythonPanelJob: Job? = null
+    private var pythonSearchJob: Job? = null
+    private var pythonDetailsJob: Job? = null
+    private var pythonPendingJob: Job? = null
+
+    fun onPythonPanelClicked() {
+        if (_viewState.value.pythonPanelState.isOpen) {
+            onPythonPanelClosed()
+        } else {
+            loadPythonPackages()
+        }
+    }
+
+    /**
+     * Called when another panel takes the sidebar. Resets the state so that
+     * opening it again reloads what is installed, which changes whenever pip
+     * runs in the terminal.
+     */
+    fun onPythonPanelClosed() {
+        pythonPanelJob?.cancel()
+        pythonSearchJob?.cancel()
+        pythonDetailsJob?.cancel()
+        pythonPendingJob?.cancel()
+        _viewState.update {
+            it.copy(pythonPanelState = PythonPanelState())
+        }
+    }
+
+    fun onPythonRefreshClicked() {
+        loadPythonPackages(forceRefresh = true)
+    }
+
+    fun onPythonQueryChanged(query: String) {
+        _viewState.update {
+            it.copy(pythonPanelState = it.pythonPanelState.copy(query = query))
+        }
+        pythonSearchJob?.cancel()
+        pythonSearchJob = viewModelScope.launch {
+            delay(PYTHON_SEARCH_DEBOUNCE_MS)
+            val installed = _viewState.value.pythonPanelState.installed
+            val results = AndroidWheelRepository.search(query, installed)
+            _viewState.update {
+                it.copy(pythonPanelState = it.pythonPanelState.copy(packages = results))
+            }
+        }
+    }
+
+    /**
+     * Expand a package to see which wheels exist. This is what tells apart
+     * "installable right now" from "only published for another interpreter",
+     * which is the difference between a wheel pip accepts and a source build
+     * that cannot succeed on device.
+     */
+    fun onPythonPackageClicked(pkg: PythonPackage) {
+        val state = _viewState.value.pythonPanelState
+        val next = if (state.expandedPackage == pkg.normalizedName) null else pkg.normalizedName
+        _viewState.update {
+            it.copy(
+                pythonPanelState = it.pythonPanelState.copy(
+                    expandedPackage = next,
+                    details = null,
+                    isLoadingDetails = next != null,
+                )
+            )
+        }
+        if (next == null) return
+        pythonDetailsJob?.cancel()
+        pythonDetailsJob = viewModelScope.launch {
+            val details = AndroidWheelRepository.fetchDetails(pkg.name)
+            _viewState.update {
+                it.copy(
+                    pythonPanelState = it.pythonPanelState.copy(
+                        details = details,
+                        isLoadingDetails = false,
+                    )
+                )
+            }
+        }
+    }
+
+    fun onPythonInstallClicked(pkg: PythonPackage, isTablet: Boolean) {
+        runPipCommand(pkg, PythonPendingAction.INSTALL, isTablet)
+    }
+
+    fun onPythonUpgradeClicked(pkg: PythonPackage, isTablet: Boolean) {
+        runPipCommand(pkg, PythonPendingAction.UPGRADE, isTablet)
+    }
+
+    fun onPythonUninstallClicked(pkg: PythonPackage, isTablet: Boolean) {
+        runPipCommand(pkg, PythonPendingAction.UNINSTALL, isTablet)
+    }
+
+    /**
+     * Hand pip to the terminal rather than running it here: the download and
+     * the build output stay visible, and the user can interrupt them.
+     *
+     * The shell writes pip's exit code to a status file afterwards, because
+     * the terminal has no channel to report back through and watching
+     * site-packages alone cannot tell a failure from a slow download — it
+     * just never changes, which left the row stuck on "Installing…".
+     */
+    private fun runPipCommand(
+        pkg: PythonPackage,
+        action: PythonPendingAction,
+        isTablet: Boolean,
+    ) {
+        val statusFile = pipStatusFile(pkg.normalizedName)
+        val pip = when (action) {
+            PythonPendingAction.INSTALL -> "python -m pip install ${pkg.name}"
+            PythonPendingAction.UPGRADE -> "python -m pip install --upgrade ${pkg.name}"
+            PythonPendingAction.UNINSTALL -> "python -m pip uninstall -y ${pkg.name}"
+        }
+        val command = """$pip; echo ${'$'}? > "${statusFile.absolutePath}""""
+        viewModelScope.launch {
+            val versionBefore = _viewState.value.pythonPanelState.installed[pkg.normalizedName]
+            statusFile.parentFile?.mkdirs()
+            statusFile.delete() // a previous run's code would settle this one instantly
+
+            _viewState.update {
+                it.copy(
+                    pythonPanelState = it.pythonPanelState.copy(
+                        pending = it.pythonPanelState.pending + (
+                            pkg.normalizedName to PythonPendingTask(action, pkg.name, versionBefore)
+                        ),
+                    )
+                )
+            }
+            if (isTablet) {
+                _viewState.update { it.copy(bottomPanelVisible = true) }
+                EventBus.terminalReady.first { it }
+                EventBus.emit(AppEvent.ExecutePythonCommand(command))
+            } else {
+                navigator.navigate(
+                    TerminalRoute(
+                        workingDir = context.filesDir.absolutePath,
+                        command = command,
+                    )
+                )
+            }
+            watchPendingPackages()
+        }
+    }
+
+    /**
+     * Poll the status files until every pending command reports an exit code,
+     * then rescan what is installed and settle each row. Cheap because it is
+     * a file read plus a directory listing.
+     */
+    private fun watchPendingPackages() {
+        if (pythonPendingJob?.isActive == true) return
+        pythonPendingJob = viewModelScope.launch {
+            repeat(PENDING_MAX_POLLS) {
+                delay(PENDING_POLL_INTERVAL_MS)
+                val pending = _viewState.value.pythonPanelState.pending
+                if (pending.isEmpty()) return@launch
+
+                val succeeded = LinkedHashMap<String, PythonPendingTask>()
+                val failed = LinkedHashMap<String, PythonPendingTask>()
+                pending.forEach { (name, task) ->
+                    when (readExitCode(name)) {
+                        null -> Unit // still running
+                        true -> succeeded[name] = task
+                        false -> failed[name] = task
+                    }
+                }
+                if (succeeded.isEmpty() && failed.isEmpty()) return@repeat
+
+                val installed = InstalledPackages.scan(context)
+                val finished = succeeded + failed
+                _viewState.update { state ->
+                    val panel = state.pythonPanelState
+                    state.copy(
+                        pythonPanelState = panel.copy(
+                            packages = panel.packages.map { pkg ->
+                                if (pkg.normalizedName !in finished) return@map pkg
+                                pkg.copy(installedVersion = installed[pkg.normalizedName])
+                            },
+                            installed = panel.installed + installed,
+                            pending = panel.pending - finished.keys,
+                        )
+                    )
+                }
+                succeeded.forEach { (name, task) ->
+                    _viewEvent.send(
+                        ViewEvent.Toast(successMessage(task, installed[name]))
+                    )
+                }
+                failed.forEach { (_, task) ->
+                    _viewEvent.send(ViewEvent.Toast(failureMessage(task)))
+                }
+            }
+
+            // Nothing ever reported: the command was interrupted, or the
+            // terminal was busy and never ran it. Drop the rows back to their
+            // buttons instead of leaving them spinning.
+            val stuck = _viewState.value.pythonPanelState.pending
+            if (stuck.isNotEmpty()) {
+                _viewState.update {
+                    it.copy(pythonPanelState = it.pythonPanelState.copy(pending = emptyMap()))
+                }
+                stuck.values.forEach { task ->
+                    _viewEvent.send(ViewEvent.Toast(timeoutMessage(task)))
+                }
+            }
+        }
+    }
+
+    /** Exit code of the pip command, true when it succeeded, null while running. */
+    private fun readExitCode(normalizedName: String): Boolean? {
+        val file = pipStatusFile(normalizedName)
+        if (!file.exists()) return null
+        val code = file.readText().trim()
+        if (code.isEmpty()) return null // caught mid-write, ask again
+        file.delete()
+        return code == "0"
+    }
+
+    private fun pipStatusFile(normalizedName: String): File =
+        File(File(context.filesDir, PIP_STATUS_DIR), normalizedName)
+
+    private fun successMessage(task: PythonPendingTask, version: String?): String =
+        when (task.action) {
+            PythonPendingAction.UNINSTALL -> stringProvider.getString(
+                R.string.editor_python_panel_toast_removed,
+                task.displayName,
+            )
+            PythonPendingAction.INSTALL,
+            PythonPendingAction.UPGRADE,
+            -> stringProvider.getString(
+                R.string.editor_python_panel_toast_installed,
+                listOfNotNull(task.displayName, version).joinToString(" "),
+            )
+        }
+
+    private fun failureMessage(task: PythonPendingTask): String =
+        stringProvider.getString(
+            if (task.action == PythonPendingAction.UNINSTALL) {
+                R.string.editor_python_panel_toast_remove_failed
+            } else {
+                R.string.editor_python_panel_toast_failed
+            },
+            task.displayName,
+        )
+
+    private fun timeoutMessage(task: PythonPendingTask): String =
+        stringProvider.getString(R.string.editor_python_panel_toast_timeout, task.displayName)
+
+    private fun loadPythonPackages(forceRefresh: Boolean = false) {
+        pythonPanelJob?.cancel()
+        pythonPanelJob = viewModelScope.launch {
+            _viewState.update {
+                it.copy(
+                    pythonPanelState = it.pythonPanelState.copy(
+                        isOpen = true,
+                        isLoading = true,
+                        errorMessage = "",
+                    )
+                )
+            }
+            try {
+                val index = AndroidWheelRepository.loadIndex(context, forceRefresh)
+                if (index.isEmpty()) {
+                    _viewState.update {
+                        it.copy(
+                            pythonPanelState = it.pythonPanelState.copy(
+                                isLoading = false,
+                                errorMessage = stringProvider.getString(
+                                    R.string.editor_python_panel_error,
+                                ),
+                            )
+                        )
+                    }
+                    return@launch
+                }
+                val installed = InstalledPackages.scan(context)
+                val query = _viewState.value.pythonPanelState.query
+                val results = AndroidWheelRepository.search(query, installed)
+                _viewState.update {
+                    it.copy(
+                        pythonPanelState = it.pythonPanelState.copy(
+                            packages = results,
+                            installed = installed,
+                            isLoading = false,
+                            errorMessage = "",
+                        )
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, e.message)
+                _viewState.update {
+                    it.copy(
+                        pythonPanelState = it.pythonPanelState.copy(
+                            isLoading = false,
+                            errorMessage = e.message.orEmpty(),
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    companion object {
+        private const val PYTHON_SEARCH_DEBOUNCE_MS = 300L
+        private const val PENDING_POLL_INTERVAL_MS = 2_000L
+
+        /** Give up after ~3 minutes, so a failed install does not poll forever. */
+        private const val PENDING_MAX_POLLS = 90
+
+        /** Where the shell drops pip's exit code, relative to filesDir. */
+        private const val PIP_STATUS_DIR = "pip-status"
+    }
 
     class Factory : ViewModelProvider.Factory {
 

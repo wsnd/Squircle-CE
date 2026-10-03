@@ -29,8 +29,13 @@ import java.io.File
 object PythonStdlibExtractor {
 
     private const val TAG = "PythonStdlibExtractor"
-    private const val ASSET_PATH = "python3.14"
+
+    /** Interpreter version bundled with the app, and the name of its asset folder. */
+    const val PYTHON_VERSION = "3.14"
+
+    private const val ASSET_PATH = "python$PYTHON_VERSION"
     private const val PYTHON_DIR_NAME = "python"
+    private const val STDLIB_PATH = "lib/python$PYTHON_VERSION"
 
     // Native dependencies whose file names carry a version suffix
     // (libjpeg.so.8, libz.so.1, libxml2.so.16, ...). AGP only packages *.so
@@ -46,11 +51,22 @@ object PythonStdlibExtractor {
     private const val EXTRACTION_VERSION = 4
 
     /**
+     * Indexes that publish wheels built for Android (PEP 738 tags like
+     * android_24_arm64_v8a). Shared with AndroidWheelRepository, so the
+     * package catalog and the pip configuration can never drift apart.
+     */
+    val WHEEL_INDEXES = listOf(
+        "https://nsyhykui.github.io/python_wheels_for_termux/simple/",
+        "https://termux-user-repository.github.io/pypi/",
+        "https://anshdadwal.is-a.dev/p4a-wheels/p4a/",
+    )
+
+    /**
      * Preconfigured pip settings, installed to $PYTHONHOME/pip.conf (pip's
-     * site-level config location, resolved from sys.prefix). Adds two
-     * community indexes with precompiled Android wheels (PEP 738 tags like
-     * android_24_arm64_v8a) so that heavy packages such as numpy install
-     * instantly instead of failing on missing manylinux wheels.
+     * site-level config location, resolved from sys.prefix). Adds the
+     * community indexes with precompiled Android wheels so that heavy
+     * packages such as numpy install instantly instead of failing on missing
+     * manylinux wheels.
      *
      * `only-binary` is the reason those indexes are actually used: pip merges
      * every index into one candidate list and takes the highest version, and
@@ -68,8 +84,7 @@ object PythonStdlibExtractor {
     private val PIP_CONFIG = """
         [global]
         extra-index-url =
-            https://nsyhykui.github.io/python_wheels_for_termux/simple/
-            https://termux-user-repository.github.io/pypi/
+${WHEEL_INDEXES.joinToString("\n") { "            $it" }}
         only-binary = :all:
     """.trimIndent() + "\n"
 
@@ -81,7 +96,7 @@ object PythonStdlibExtractor {
      */
     fun extractIfNeeded(context: Context): String? {
         val pythonDir = File(context.filesDir, PYTHON_DIR_NAME) // This will be PYTHONHOME
-        val stdlibDir = File(pythonDir, "lib/python3.14")
+        val stdlibDir = File(pythonDir, STDLIB_PATH)
 
         // Check if correct architecture is already extracted
         val abi = android.os.Build.SUPPORTED_ABIS[0]
@@ -188,6 +203,13 @@ object PythonStdlibExtractor {
         }
         Log.i(TAG, "Extracted ${names.size} native dependencies into ${libDir.absolutePath}")
     }
+
+    /**
+     * Directory pip installs into, and therefore the source of truth for what
+     * is installed: $PYTHONHOME/lib/pythonX.Y/site-packages.
+     */
+    fun sitePackages(context: Context): File =
+        File(File(context.filesDir, PYTHON_DIR_NAME), "$STDLIB_PATH/site-packages")
 
     /**
      * Rewrite pip.conf for an already extracted runtime.
